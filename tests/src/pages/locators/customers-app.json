@@ -1,0 +1,8 @@
+{
+  "_comment": "Locators of the example single-page customers app (CustomersAppPage), used by the @mock scenario. Replace with your frontend's locators.",
+  "heading": { "selector": "h1", "description": "page heading" },
+  "status": { "selector": "#status", "description": "status line: loading, count, error" },
+  "newName": { "selector": "#new-customer-name", "description": "new customer name input" },
+  "newEmail": { "selector": "#new-customer-email", "description": "new customer e-mail input" },
+  "addButton": { "selector": "#add-customer-button", "description": "Add Customer button" }
+}

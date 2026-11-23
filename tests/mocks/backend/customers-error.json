@@ -1,0 +1,8 @@
+[
+  {
+    "method": "GET",
+    "url": "/api/customers",
+    "status": 503,
+    "json": { "detail": "Service unavailable" }
+  }
+]

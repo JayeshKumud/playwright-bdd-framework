@@ -1,0 +1,19 @@
+{
+  "_comment": "GridLibrary locators for AG Grid's standard markup: header cells and cells carry col-id, rows row-index, cells aria-colindex. HEADER is replaced with the column header text.",
+  "root": ".ag-root-wrapper",
+  "header": ".ag-header",
+  "headerCell": ".ag-header-cell:has(.ag-header-cell-text:text-is('HEADER'))",
+  "loadingOverlay": ".ag-overlay-loading-wrapper",
+  "rowsOrNoRows": ".ag-center-cols-container .ag-row, .ag-overlay-no-rows-wrapper",
+  "row": ".ag-row",
+  "cell": ".ag-cell",
+  "_columnIndexAttribute": "cells carry their 1-based position in aria-colindex",
+  "columnIndexAttribute": "aria-colindex",
+  "checkbox": "input[type='checkbox']",
+  "radio": "input[type='radio']",
+  "button": "button, [role='button']",
+  "link": "a",
+  "input": "input:not([type='checkbox']):not([type='radio']), textarea",
+  "dropdown": "select, [role='combobox']",
+  "image": "img"
+}

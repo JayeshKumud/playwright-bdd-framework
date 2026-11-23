@@ -1,0 +1,16 @@
+{
+  "_comment": "GridLibrary locators for the customers page's plain HTML table: columns are found by their position under the header (no col-id), so cells are matched with :nth-child.",
+  "root": "#customers-table",
+  "header": "#customers-table thead",
+  "headerCell": "#customers-table thead th:text-is('HEADER')",
+  "rowsOrNoRows": "#customers-table tbody tr",
+  "row": "#customers-table tbody tr.customer-row",
+  "cell": "td",
+  "checkbox": "input[type='checkbox']",
+  "radio": "input[type='radio']",
+  "button": "button, [role='button']",
+  "link": "a",
+  "input": "input:not([type='checkbox']):not([type='radio']), textarea",
+  "dropdown": "select, [role='combobox']",
+  "image": "img"
+}

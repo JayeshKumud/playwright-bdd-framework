@@ -1,0 +1,13 @@
+{
+  "_comment": "Locators of the customers page (CustomersPage). Name -> selector, or { selector, description }. Keys starting with _ are ignored.",
+  "heading": { "selector": "h1", "description": "page heading" },
+  "searchInput": { "selector": "#search-input", "description": "search by name input" },
+  "searchButton": { "selector": "#search-button", "description": "Search button" },
+  "noResults": { "selector": "#no-results", "description": "'No customers found.' message" },
+  "pageIndicator": { "selector": "#page-indicator", "description": "'Page x of y' text" },
+  "nextPage": { "selector": "#next-page-link", "description": "Next page link" },
+  "previousPage": { "selector": "#prev-page-link", "description": "Previous page link" },
+  "newName": { "selector": "#new-customer-name", "description": "new customer name input" },
+  "newEmail": { "selector": "#new-customer-email", "description": "new customer e-mail input" },
+  "addButton": { "selector": "#add-customer-button", "description": "Add Customer button" }
+}

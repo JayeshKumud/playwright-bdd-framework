@@ -1,0 +1,14 @@
+# A local ActiveMQ Classic broker for the @mq scenarios: npm run mq:start / npm run mq:stop.
+# ActiveMQ 6.4 ships with only OpenWire switched on, so docker/activemq/activemq.xml is the broker's default
+# configuration with the AMQP connector (port 5672, what the tests use) switched on.
+# Ports: AMQP 5672, OpenWire 61616, web console http://localhost:8161 (admin / admin).
+services:
+  activemq:
+    image: apache/activemq-classic:6.4.0
+    container_name: playwright-bdd-activemq
+    ports:
+      - "5672:5672"
+      - "61616:61616"
+      - "8161:8161"
+    volumes:
+      - ./activemq/activemq.xml:/opt/apache-activemq/conf/activemq.xml:ro

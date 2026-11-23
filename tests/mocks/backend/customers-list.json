@@ -1,0 +1,18 @@
+[
+  {
+    "method": "GET",
+    "url": "/api/customers",
+    "status": 200,
+    "json": [
+      { "id": 1, "name": "Ada Lovelace", "email": "ada@example.com", "status": "active" },
+      { "id": 2, "name": "Grace Hopper", "email": "grace@example.com", "status": "inactive" },
+      { "id": 3, "name": "Alan Turing", "email": "alan@example.com", "status": "active" }
+    ]
+  },
+  {
+    "method": "POST",
+    "url": "/api/customers",
+    "status": 201,
+    "json": { "id": 4, "name": "Katherine Johnson", "email": "katherine@example.com", "status": "active" }
+  }
+]

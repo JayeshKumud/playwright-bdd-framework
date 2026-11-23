@@ -1,0 +1,8 @@
+node_modules/
+.features-gen/
+test-results/
+allure-results/
+reports/
+playwright/.auth/
+# local overrides and secrets, never committed (see env/README.md)
+env/local.env

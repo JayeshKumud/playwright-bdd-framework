@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!--
+  EXAMPLE ONLY: a tiny stand-in for a frontend that loads its data from a backend API (GET/POST /api/customers).
+  The example @mock scenario serves it, then mocks the backend it calls. For your own frontend, delete the
+  "the demo frontend is served" step and open your real frontend URL instead; the backend mocking stays the same.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Customers App</title>
+</head>
+<body>
+<h1>Customers App</h1>
+<p id="status">Loading...</p>
+<table id="customers-table" hidden>
+  <thead><tr><th>Name</th><th>Email</th><th>Status</th></tr></thead>
+  <tbody></tbody>
+</table>
+<form id="add-form">
+  <input id="new-customer-name" placeholder="Name" required>
+  <input id="new-customer-email" type="email" placeholder="Email" required>
+  <button id="add-customer-button" type="submit">Add Customer</button>
+</form>
+<script>
+  const status = document.getElementById('status');
+  const table = document.getElementById('customers-table');
+  function addRow(c) {
+    const tr = document.createElement('tr');
+    tr.className = 'customer-row';
+    for (const v of [c.name, c.email, c.status]) {
+      const td = document.createElement('td');
+      td.textContent = v;
+      tr.appendChild(td);
+    }
+    table.tBodies[0].appendChild(tr);
+  }
+  fetch('/api/customers')
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((customers) => {
+      customers.forEach(addRow);
+      table.hidden = false;
+      status.textContent = customers.length + ' customers';
+    })
+    .catch((code) => { status.textContent = 'Could not load customers (' + code + ')'; });
+  document.getElementById('add-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    fetch('/api/customers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('new-customer-name').value,
+        email: document.getElementById('new-customer-email').value,
+      }),
+    })
+      .then((r) => r.json())
+      .then((c) => { addRow(c); status.textContent = 'Added ' + c.name; });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "cucumber.features": ["features/**/*.feature"],
+  "cucumber.glue": ["src/steps/**/*.ts", "src/fixtures/test.ts"],
+  "playwright.env": {},
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.exclude": {
+    ".features-gen": true
+  }
+}

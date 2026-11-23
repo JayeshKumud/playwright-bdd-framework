@@ -1,0 +1,38 @@
+{
+  "name": "playwright-bdd-framework",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BDD test framework: Cucumber features run by Playwright (GUI and API in one browser context) and ActiveMQ messaging over AMQP 1.0",
+  "type": "commonjs",
+  "scripts": {
+    "clean": "node scripts/clean.js",
+    "bddgen": "bddgen",
+    "test": "npm run clean && bddgen && playwright test",
+    "test:ui": "npm run test -- --grep @ui",
+    "test:api": "npm run test -- --grep @api",
+    "test:mq": "npm run test -- --grep @mq",
+    "test:e2e": "npm run test -- --grep @e2e",
+    "test:smoke": "npm run test -- --grep @smoke",
+    "test:mock": "npm run test -- --grep @mock",
+    "test:headed": "npm run test -- --headed --workers=1",
+    "steps:list": "bddgen export",
+    "typecheck": "tsc --noEmit",
+    "allure:generate": "allure generate allure-results -o reports/allure --clean",
+    "allure:open": "allure open reports/allure",
+    "allure:serve": "allure serve allure-results",
+    "report:html": "playwright show-report reports/html",
+    "browsers:install": "playwright install chromium",
+    "mq:start": "docker compose -f docker/activemq.compose.yml up -d",
+    "mq:stop": "docker compose -f docker/activemq.compose.yml down"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "allure-commandline": "^2.46.1",
+    "allure-playwright": "^3.15.0",
+    "dotenv": "^18.0.10",
+    "playwright-bdd": "^9.2.1",
+    "rhea": "^3.0.5",
+    "typescript": "^7.0.2"
+  }
+}
