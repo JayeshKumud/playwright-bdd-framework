@@ -18,9 +18,17 @@ Feature: Customers page
       | name          | status   |
       | Ada Lovelace  | active   |
       | Alan Turing   | inactive |
+      | Grace Hopper  | active   |
     When I search the customers page for this scenario's customers
     Then the grid column "Name" shows
       | Ada Lovelace |
       | Alan Turing  |
-    And in the grid row where "Name" is "Alan Turing", "Status" is "inactive"
+      | Grace Hopper |
+    And in the grid rows where these match, "Status" is "inactive"
+      | Name   | Alan Turing |
+    And in the grid rows where these match, "Name" is "Alan Turing"
+      | Name   | Alan Turing |
+      | Status | inactive    |
+    And in the grid rows where these match, "Status" is "active"
+      | Status | active |
     And the page shows "Page 1 of 1"

@@ -1,6 +1,8 @@
 import { DataTable } from 'playwright-bdd';
 import { Keys, scenarioName, suffixOf } from '../../core/keys';
+import { ScenarioData } from '../../core/ScenarioData';
 import { uniqueEmail } from '../../core/unique';
+import { RowMatch } from '../../pages/GridLibrary';
 import { expect, Given, Then, When } from '../../fixtures/test';
 
 // Steps of the customers page. Names in the features are made unique per scenario ("Ada Lovelace" becomes
@@ -40,14 +42,14 @@ Then('the results show only that customer with status {string}', async ({ custom
   const grid = await customersPage.grid().waitUntilLoaded();
   const customer = data.get(Keys.CUSTOMER);
   expect(await grid.columnValues('Name')).toEqual([customer.name]);
-  await expect(await grid.cell('Name', customer.name, 'Status')).toHaveText(status);
+  await expect(await grid.cells('Name', customer.name, 'Status')).toHaveText(status);
 });
 
 Then('the customer appears in the customer list', async ({ customersPage, data }) => {
   const customer = data.get(Keys.CUSTOMER);
   await customersPage.search(customer.name);
   const grid = await customersPage.grid().waitUntilLoaded();
-  await expect(await grid.cell('Name', customer.name, 'Email')).toHaveText(customer.email);
+  await expect(await grid.cells('Name', customer.name, 'Email')).toHaveText(customer.email);
 });
 
 Then('the page says no customers were found', async ({ customersPage }) => {
@@ -60,14 +62,50 @@ Then('the grid column {string} shows', async ({ customersPage, data }, header: s
   expect(await grid.columnValues(header)).toEqual(expected);
 });
 
+// The grid row steps take the rows as a table of | header | value |, every line of which a row must show. They
+// work on every matching row, not just the first:
+//
+//   And in the grid rows where these match, "Status" is "inactive"
+//     | Name  | Alan Turing |
+//     | Email | alan@x.org  |
+
 Then(
-  'in the grid row where {string} is {string}, {string} is {string}',
-  async ({ customersPage, data }, header: string, value: string, targetHeader: string, expected: string) => {
+  'in the grid rows where these match, {string} is {string}',
+  async ({ customersPage, data }, targetHeader: string, expected: string, table: DataTable) => {
     const grid = await customersPage.grid().waitUntilLoaded();
-    const rowValue = header === 'Name' ? scenarioName(data, value) : value;
-    await expect(await grid.cell(header, rowValue, targetHeader)).toHaveText(expected);
+    const value = targetHeader === 'Name' ? scenarioName(data, expected) : expected;
+    const values = await grid.cellValues(rowMatch(data, table), targetHeader);
+    expect(values.length, 'matching grid rows').toBeGreaterThan(0);
+    expect(values, `"${targetHeader}" of every matching grid row`).toEqual(values.map(() => value));
   },
 );
+
+Then(
+  'the grid rows where these match show a {string} in column {string}',
+  async ({ customersPage, data }, elementType: string, targetHeader: string, table: DataTable) => {
+    const grid = await customersPage.grid().waitUntilLoaded();
+    const elements = await grid.elements(rowMatch(data, table), elementType, targetHeader);
+    await expect(elements.first(), `a ${elementType} in column "${targetHeader}"`).toBeVisible();
+    for (const element of await elements.all()) await expect(element).toBeVisible();
+  },
+);
+
+When(
+  'I click the {string} in column {string} of every grid row where these match',
+  async ({ customersPage, data }, elementType: string, targetHeader: string, table: DataTable) => {
+    const grid = await customersPage.grid().waitUntilLoaded();
+    const elements = await grid.elements(rowMatch(data, table), elementType, targetHeader);
+    await expect(elements.first(), `a ${elementType} in column "${targetHeader}"`).toBeVisible();
+    for (const element of await elements.all()) await element.click();
+  },
+);
+
+/** A | header | value | table as a grid row match, with names made unique for the scenario. */
+function rowMatch(data: ScenarioData, table: DataTable): RowMatch {
+  return Object.fromEntries(
+    table.raw().map(([header, value]) => [header, header === 'Name' ? scenarioName(data, value) : value]),
+  );
+}
 
 Then('the page shows {string}', async ({ customersPage }, text: string) => {
   await expect(customersPage.pageIndicator()).toHaveText(text);

@@ -11,6 +11,9 @@ BDD test framework in TypeScript: Cucumber features run by **Playwright Test** t
 - **Reports**: Allure, the Playwright HTML report, and Cucumber HTML/JSON. Every report gets a screenshot after
   each GUI step; failed scenarios also get a full-page screenshot, the trace and the video.
 
+**Documentation** is in [docs/](docs/README.md): architecture, fixtures, hooks, shared data, and a page mapping
+every part of the Java framework to its equivalent here ([docs/java-equivalents.md](docs/java-equivalents.md)).
+
 **Everything lives in this `tests/` folder** (package.json, config, code), so the folder can be dropped into an
 application repository without touching anything outside it.
 
@@ -113,12 +116,15 @@ browser context is still open.
 
 ```ts
 const grid = await customersPage.grid().waitUntilLoaded();
-await grid.cell('Name', 'Ada Lovelace', 'Status');            // a cell in the row where Name is Ada Lovelace
-await (await grid.checkbox('Booking', 'Booking A')).check();   // that row's checkbox
-await grid.element('Booking', 'Booking A', 'button', 'Actions'); // checkbox|radio|button|link|input|dropdown|image or CSS
-await grid.element('Booking', 'Booking A', 'link', 3);         // in the 3rd column
+await grid.cells('Name', 'Ada Lovelace', 'Status');             // the Status cells of the rows where Name is Ada Lovelace
+await grid.cellValues({ Role: 'Admin' }, 'Name');               // the Name of every row matching all the values
+await (await grid.checkboxes('Booking', 'Booking A')).check();  // those rows' checkboxes
+await grid.elements('Booking', 'Booking A', 'button', 'Actions'); // checkbox|radio|button|link|input|dropdown|image or CSS
+await grid.elements('Booking', 'Booking A', 'link', 3);         // in the 3rd column
 await grid.columnValues('Name');
 ```
+
+Every function returns all matching rows; add `.first()` or `.nth(i)` for one of them.
 
 `locators/grid.ag-grid.json` is for AG Grid. `grid.customers-table.json` shows how to describe a plain HTML table.
 
