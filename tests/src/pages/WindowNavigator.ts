@@ -56,11 +56,16 @@ export class WindowNavigator {
 
   /** Switches to an open window by its page title. */
   async switchTo(title: string): Promise<Page> {
+    return this.makeCurrent(await this.window(title));
+  }
+
+  /**
+   * An open window by its page title, without switching to it: for a page object that always works on one window,
+   * such as `new PricePage(await windows.window(PricePage.TITLE))`.
+   */
+  async window(title: string): Promise<Page> {
     const known = this.windows.get(title);
-    const page = known && !known.isClosed()
-      ? known
-      : await findByTitle(this.current.context().pages(), title);
-    return this.makeCurrent(page);
+    return known && !known.isClosed() ? known : findByTitle(this.current.context().pages(), title);
   }
 
   /** Switches back to the first window. */

@@ -92,12 +92,29 @@ windows.current;                               // the window the scenario is on
 |---|---|
 | `open(action, title?)` | runs the action, waits for the new window, waits for it to load, checks its title, makes it current |
 | `switchTo(title)` | makes an open window current, by title; fails with `No open window has the title "..."` |
+| `window(title)` | an open window by title, without making it current (for page objects of one window) |
 | `backToFirst()` | makes the first window current |
 | `current` | the current window |
 | `first` | the scenario's first window |
 
 A page object for a popup is created in the step, with the popup's `Page` (`new PricePage(price)`), because
 the popup does not exist when the fixtures are set up.
+
+[`PricePage`](../src/pages/PricePage.ts) is the Price window (AG Grid), as in agentic-qa-java. Its steps,
+[`price.steps.ts`](../src/steps/ui/price.steps.ts), always work on that window's grid, whichever window the
+scenario is on: they find it with `windows.window(PricePage.TITLE)`, so the Price window must be open.
+
+```gherkin
+Then the Price grid is loaded
+When I check the Price grid rows matching
+  | Booking | Booking A |
+  | Status  | Open      |
+When I uncheck the Price grid rows matching
+Then the Price grid rows matching are checked
+Then the Price grid rows matching are not checked
+Then in the Price grid rows matching, "Status" is "Open"
+When I click the "link" in column "Customer" of the Price grid rows matching
+```
 
 ## Grids: `GridLibrary`
 

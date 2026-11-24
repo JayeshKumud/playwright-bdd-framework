@@ -1,0 +1,8 @@
+{
+  "_comment": "Locators of the Price window (PricePage), opened from the home page's dropdown (the Price Booking option). Name -> selector, or { selector, description }. Keys starting with _ are ignored. The same as agentic-qa-java's locators/pricepage.json.",
+  "searchDataButton": {
+    "selector": "button[type='button'][data-testid='search']:has(div:text-is('Search Data'))",
+    "description": "Search Data button"
+  },
+  "filterButton": { "selector": "[data-testid='filter']", "description": "filter button" }
+}
