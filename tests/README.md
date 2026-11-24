@@ -112,15 +112,16 @@ browser context is still open.
 
 ### Grids
 
-`page.grid()` returns a `GridLibrary`. Columns are named by their header text or their position:
+`page.grid()` returns a `GridLibrary`, with the same functions as agentic-qa-java's. Columns are named by their
+header text; rows are found by `{ header: value, ... }` and must show every value:
 
 ```ts
 const grid = await customersPage.grid().waitUntilLoaded();
-await grid.cells('Name', 'Ada Lovelace', 'Status');             // the Status cells of the rows where Name is Ada Lovelace
-await grid.cellValues({ Role: 'Admin' }, 'Name');               // the Name of every row matching all the values
-await (await grid.checkboxes('Booking', 'Booking A')).check();  // those rows' checkboxes
-await grid.elements('Booking', 'Booking A', 'button', 'Actions'); // checkbox|radio|button|link|input|dropdown|image or CSS
-await grid.elements('Booking', 'Booking A', 'link', 3);         // in the 3rd column
+await grid.cells('Name', 'Ada Lovelace');                           // the Name cells showing "Ada Lovelace"
+await grid.cells({ Name: 'Ada Lovelace' }, 'Status');               // the Status cells of those rows
+await grid.values({ Role: 'Admin' }, 'Name');                       // the Name of every row matching all the values
+await grid.elements({ Booking: 'Booking A' }, 'checkbox');          // checkbox|radio|button|link|input|dropdown|image or CSS
+await grid.elements({ Booking: 'Booking A' }, 'button', 'Actions'); // in their Actions column
 await grid.columnValues('Name');
 ```
 

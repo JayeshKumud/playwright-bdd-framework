@@ -5,29 +5,25 @@ import agGridLocators from './locators/grid.ag-grid.json';
 /** The element types {@link GridLibrary.elements} knows; anything else is used as a CSS selector. */
 export const ELEMENT_TYPES = ['checkbox', 'radio', 'button', 'link', 'input', 'dropdown', 'image'] as const;
 
-/** A column: its header text, or its 1-based position as shown on screen. */
-export type Column = string | number;
-
 /**
  * The values a row must show, as { header: value }: `{ Name: 'COE', Role: 'Admin' }` is the row whose Name is
- * "COE" and whose Role is "Admin". Every function that takes a row as (header, value) also takes one of these.
+ * "COE" and whose Role is "Admin".
  */
 export type RowMatch = Record<string, string>;
 
 /**
- * A data grid, with the same functions for every page. Columns are named by their header text (or position), so
- * tests never deal with column ids:
+ * A data grid, with the same functions for every page (the same as agentic-qa-java's GridLibrary). Columns are
+ * named by their header text, so tests never deal with column ids. Rows are found by a {@link RowMatch}, and every
+ * function returns all the rows that show all its values:
  *
  *   const grid = await customersPage.grid().waitUntilLoaded();
- *   await grid.cells('Name', 'Ada Lovelace');                       // the Name cells showing "Ada Lovelace"
- *   await grid.cells('Name', 'Ada Lovelace', 'Status');             // the Status cells of those rows
- *   await grid.cells({ Name: 'COE', Role: 'Admin' }, 'Status');     // the Status cells of the rows matching both
- *   await grid.cellValues({ Role: 'Admin' }, 'Name');               // the Name of every Admin row
- *   await grid.rows({ Role: 'Admin' });                             // every Admin row
- *   await (await grid.checkboxes('Booking', 'Booking A')).check();  // the checkbox of the Booking A row
- *   await grid.elements({ Role: 'Admin' }, 'button', 'Actions');    // the Actions buttons of every Admin row
- *   await grid.elements('Booking', 'Booking A', 'link', 3);         // the links in those rows' 3rd column
- *   await grid.columnValues('Name');                                // all names shown
+ *   await grid.cells('Name', 'Ada Lovelace');                           // the Name cells showing "Ada Lovelace"
+ *   await grid.rows({ Name: 'COE', Role: 'Admin' });                    // every row matching both columns
+ *   await grid.cells({ Name: 'COE' }, 'Status');                        // the Status cells of those rows
+ *   await grid.values({ Role: 'Admin' }, 'Name');                       // the Name of every Admin row
+ *   await grid.elements({ Booking: 'Booking A' }, 'checkbox');          // the checkboxes in those rows
+ *   await grid.elements({ Booking: 'Booking A' }, 'link', 'Customer');  // ... in their Customer column
+ *   await grid.columnValues('Name');                                    // all names shown
  *
  * Lookups are async because a column is resolved from its header first: by the header's col-id when it has one
  * (AG Grid), else by its position under the header (a plain HTML table). The selectors come from a locator file:
@@ -64,36 +60,22 @@ export class GridLibrary {
   }
 
   /**
-   * The rows whose column `header` shows `value`, or that show every value of `match`, top to bottom: all their
-   * parts if the grid splits rows (AG Grid row-index). Waits until at least one row matches. All the functions
-   * below work on every matching row: add `.first()` or `.nth(i)` to the result for one of them.
+   * Searches a column for a value: the cells of column `header` whose whole text is `value` (spaces around it
+   * ignored).
    */
-  rows(header: string, value: string): Promise<Locator>;
-  rows(match: RowMatch): Promise<Locator>;
-  async rows(a: string | RowMatch, b?: string): Promise<Locator> {
-    return this.matchRows(toMatch(a, b));
-  }
-
-  /**
-   * The `target` cells of every row whose column `header` shows `value`, or that matches `match`, top to bottom.
-   * Without `target`: the cells of column `header` whose whole text is `value` (spaces around it ignored).
-   */
-  cells(header: string, value: string, target?: Column): Promise<Locator>;
-  cells(match: RowMatch, target: Column): Promise<Locator>;
-  async cells(a: string | RowMatch, b: string | Column, c?: Column): Promise<Locator> {
-    if (typeof a === 'string' && c === undefined) {
-      return this.el.get('row').locator(await this.cellSelector(a)).filter({ hasText: exactly(String(b)) });
+  cells(header: string, value: string): Promise<Locator>;
+  /** The cells of column `targetHeader` in every row that shows all the values of `match`, top to bottom. */
+  cells(match: RowMatch, targetHeader: string): Promise<Locator>;
+  async cells(a: string | RowMatch, b: string): Promise<Locator> {
+    if (typeof a === 'string') {
+      return this.el.get('row').locator(await this.cellSelector(a)).filter({ hasText: exactly(b) });
     }
-    const [match, target] = typeof a === 'string' ? [toMatch(a, String(b)), c!] : [a, b];
-    return (await this.rows(match)).locator(await this.cellSelector(target));
+    return (await this.rows(a)).locator(await this.cellSelector(b));
   }
 
-  /** The trimmed texts of the `target` cells of every matching row, top to bottom. */
-  cellValues(header: string, value: string, target: Column): Promise<string[]>;
-  cellValues(match: RowMatch, target: Column): Promise<string[]>;
-  async cellValues(a: string | RowMatch, b: string | Column, c?: Column): Promise<string[]> {
-    const cells = typeof a === 'string' ? await this.cells(a, String(b), c!) : await this.cells(a, b);
-    return (await cells.allTextContents()).map((t) => t.trim());
+  /** Searches the whole grid for a value: every cell, in any column, whose whole text is `value`. */
+  cellWithValue(value: string): Locator {
+    return this.el.get('row').locator(this.el.selector('cell')).filter({ hasText: exactly(value) });
   }
 
   /** Tells whether column `header` shows `value`, waiting up to the action timeout for it. */
@@ -106,31 +88,36 @@ export class GridLibrary {
     }
   }
 
+  /**
+   * Every row that shows all the values of `match`, top to bottom: all their parts if the grid splits rows (AG
+   * Grid row-index). Waits until at least one row matches, and fails if none does.
+   */
+  async rows(match: RowMatch): Promise<Locator> {
+    return this.matchRows(match);
+  }
+
+  /** The trimmed texts of column `targetHeader` in every row that shows all the values of `match`, top to bottom. */
+  async values(match: RowMatch, targetHeader: string): Promise<string[]> {
+    return (await (await this.cells(match, targetHeader)).allTextContents()).map((t) => t.trim());
+  }
+
+  /**
+   * Every element of a type in every row that shows all the values of `match`: anywhere in the rows, or in column
+   * `targetHeader`. `elementType` is one of {@link ELEMENT_TYPES} (case ignored) or a CSS selector: a tag
+   * ("span"), a class (".ag-icon") or an attribute ("[data-testid='edit']"). Use `.all()` to act on each,
+   * `.first()` for one.
+   */
+  elements(match: RowMatch, elementType: string): Promise<Locator>;
+  elements(match: RowMatch, elementType: string, targetHeader: string): Promise<Locator>;
+  async elements(match: RowMatch, elementType: string, targetHeader?: string): Promise<Locator> {
+    const scope = targetHeader === undefined ? await this.rows(match) : await this.cells(match, targetHeader);
+    return scope.locator(this.elementSelector(elementType));
+  }
+
   /** The texts of a column, top to bottom (the rows the grid has rendered), trimmed. */
   async columnValues(header: string): Promise<string[]> {
     const texts = await this.el.get('row').locator(await this.cellSelector(header)).allTextContents();
     return texts.map((t) => t.trim());
-  }
-
-  /** The checkboxes of every matching row: anywhere in them, or in a given column (header text or position). */
-  checkboxes(header: string, value: string, column?: Column): Promise<Locator>;
-  checkboxes(match: RowMatch, column?: Column): Promise<Locator>;
-  async checkboxes(a: string | RowMatch, b?: string | Column, c?: Column): Promise<Locator> {
-    return typeof a === 'string' ? this.elements(a, String(b), 'checkbox', c) : this.elements(a, 'checkbox', b);
-  }
-
-  /**
-   * The elements of a type in every row whose column `header` shows `value` (or that matches `match`), anywhere in
-   * the rows or in a given column, top to bottom. `elementType` is one of {@link ELEMENT_TYPES} (case ignored) or a
-   * CSS selector: a tag ("span"), a class (".ag-icon") or an attribute ("[data-testid='edit']").
-   */
-  elements(header: string, value: string, elementType: string, column?: Column): Promise<Locator>;
-  elements(match: RowMatch, elementType: string, column?: Column): Promise<Locator>;
-  async elements(a: string | RowMatch, b: string, c?: string | Column, d?: Column): Promise<Locator> {
-    const [match, elementType, column] = typeof a === 'string' ? [toMatch(a, b), String(c), d] : [a, b, c];
-    const rows = await this.rows(match);
-    const scope = column === undefined ? rows : rows.locator(await this.cellSelector(column));
-    return scope.locator(this.elementSelector(elementType));
   }
 
   /**
@@ -173,14 +160,9 @@ export class GridLibrary {
     return found!;
   }
 
-  /** The selector of a column's cells: by col-id or header position for a header text, by position for a number. */
-  private async cellSelector(column: Column): Promise<string> {
-    const cell = this.el.selector('cell');
-    if (typeof column === 'number') {
-      const attribute = this.locators.columnIndexAttribute;
-      return typeof attribute === 'string' ? `${cell}[${attribute}='${column}']` : `${cell}:nth-child(${column})`;
-    }
-    return cell + (await this.columnKey(column));
+  /** The selector of a column's cells, by col-id or by the header's position. */
+  private async cellSelector(header: string): Promise<string> {
+    return this.el.selector('cell') + (await this.columnKey(header));
   }
 
   /**
@@ -205,11 +187,6 @@ export class GridLibrary {
     const name = elementType.trim().toLowerCase();
     return (ELEMENT_TYPES as readonly string[]).includes(name) ? this.el.selector(name) : elementType.trim();
   }
-}
-
-/** A row given as (header, value) or as a {@link RowMatch}, as a RowMatch. */
-function toMatch(a: string | RowMatch, value?: string): RowMatch {
-  return typeof a === 'string' ? { [a]: value ?? '' } : a;
 }
 
 /** `"Name" is "COE" and "Role" is "Admin"`, for messages. */

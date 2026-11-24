@@ -33,7 +33,7 @@ Then('the app shows the customers', async ({ customersAppPage }, table: DataTabl
   const expected = table.hashes();
   expect(await grid.columnValues('Name')).toEqual(expected.map((r) => r.Name));
   for (const row of expected) {
-    await expect(await grid.cells('Name', row.Name, 'Status')).toHaveText(row.Status);
+    await expect(await grid.cells({ Name: row.Name }, 'Status')).toHaveText(row.Status);
   }
 });
 

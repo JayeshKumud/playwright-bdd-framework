@@ -117,7 +117,7 @@ await expect(row.locator(this.el.selector('rowName'))).toHaveText(name);
 Use [`GridLibrary`](page-objects.md#grids-gridlibrary) instead of writing row selectors yourself:
 
 ```ts
-await grid.elements('Name', 'Ada Lovelace', 'button', 'Actions');
+await grid.elements({ Name: 'Ada Lovelace' }, 'button', 'Actions');
 ```
 
 ## 6. Common mistakes

@@ -101,66 +101,65 @@ the popup does not exist when the fixtures are set up.
 
 ## Grids: `GridLibrary`
 
-[`GridLibrary`](../src/pages/GridLibrary.ts) has the same functions for every data grid. Columns are named by
-their **header text** (or their 1-based position), so tests never deal with column ids.
+[`GridLibrary`](../src/pages/GridLibrary.ts) has the same functions for every data grid, and the same as
+agentic-qa-java's `GridLibrary`. Columns are named by their **header text**, so tests never deal with column ids.
+A row is found by a `RowMatch` (`{ header: value, ... }`): the row must show every value. For AG Grid the values
+may sit in different parts of the row (pinned and scrolling).
 
 ```ts
 const grid = await customersPage.grid().waitUntilLoaded();
+const admin = { Name: 'COE', Role: 'Admin' };
 
-await grid.cells('Name', 'Ada Lovelace');                          // the Name cells showing "Ada Lovelace"
-await grid.cells('Name', 'Ada Lovelace', 'Status');                // the Status cells of those rows
-await grid.cellValues('Name', 'Ada Lovelace', 'Status');           // their texts: ['active']
-await grid.rows('Name', 'Ada Lovelace');                           // the whole rows
-await grid.contains('Name', 'Ada Lovelace');                       // true / false, waits up to the action timeout
-await grid.columnValues('Name');                                   // ['Ada Lovelace', 'Alan Turing']
-await (await grid.checkboxes('Booking', 'Booking A')).check();     // the checkbox anywhere in those rows
-await grid.elements('Booking', 'Booking A', 'button', 'Actions');  // the buttons in their Actions column
-await grid.elements('Booking', 'Booking A', 'link', 3);            // the links in their 3rd column
-await grid.elements('Booking', 'Booking A', "[data-testid='edit']");// any CSS selector
+await grid.cells('Name', 'Ada Lovelace');                   // the Name cells showing "Ada Lovelace"
+await grid.cellWithValue('Ada Lovelace');                   // every cell, in any column, showing it
+await grid.contains('Name', 'Ada Lovelace');                // true / false, waits up to the action timeout
+await grid.columnValues('Name');                            // ['Ada Lovelace', 'Alan Turing']
+await grid.rows(admin);                                     // every row matching both columns
+await grid.cells(admin, 'Status');                          // the Status cells of those rows
+await grid.values(admin, 'Status');                         // their texts: ['active']
+await grid.elements(admin, 'checkbox');                     // the checkboxes anywhere in those rows
+await grid.elements(admin, 'button', 'Actions');            // the buttons in their Actions column
+await grid.elements(admin, "[data-testid='edit']");         // any CSS selector
 ```
 
 Every function works on **all** matching rows and returns a locator for all of them (or a list of texts). For one
-of them, add `.first()`, `.nth(i)` or `.last()`. A check such as `toHaveText('active')` fails if more than one
-element matches, so the row must be unique for it.
+of them, add `.first()`, `.nth(i)` or `.last()`; to act on each, loop over `.all()`.
 
 | Function | Returns |
 |---|---|
 | `waitUntilLoaded()` | waits for the grid, its header, the loading overlay to go, and a row or the "no rows" message |
-| `rows(header, value)` | every matching row, top to bottom; for AG Grid, all parts of them (pinned and scrolling parts share a `row-index`) |
-| `cells(header, value, target?)` | the cells of `header` whose whole text is `value`; with `target`, the cells of that column in those rows |
-| `cellValues(header, value, target)` | the trimmed texts of the `target` cells of every matching row, as `string[]` |
+| `cells(header, value)` | the cells of column `header` whose whole text is `value` |
+| `cellWithValue(value)` | every cell, in any column, whose whole text is `value` |
 | `contains(header, value)` | whether the column shows the value |
 | `columnValues(header)` | the texts of the column, top to bottom, trimmed |
-| `checkboxes(header, value, column?)` | the checkboxes of every matching row |
-| `elements(header, value, type, column?)` | the elements of every matching row: `checkbox`, `radio`, `button`, `link`, `input`, `dropdown`, `image`, or a CSS selector |
+| `rows(match)` | every row showing all the values, top to bottom; for AG Grid, all parts of them (pinned and scrolling parts share a `row-index`) |
+| `cells(match, targetHeader)` | the `targetHeader` cells of those rows |
+| `values(match, targetHeader)` | their trimmed texts, as `string[]` |
+| `elements(match, type)` | the elements of a type anywhere in those rows: `checkbox`, `radio`, `button`, `link`, `input`, `dropdown`, `image`, or a CSS selector |
+| `elements(match, type, targetHeader)` | the same, in column `targetHeader` |
 
-### Rows matched by several columns
-
-Wherever a row is given as `header, value`, a `RowMatch` (`{ header: value, ... }`) can be given instead: the
-row must show every value. For AG Grid the values may sit in different parts of the row (pinned and scrolling).
-
-```ts
-const admin = { Name: 'COE', Role: 'Admin' };
-await grid.rows(admin);
-await grid.cells(admin, 'Status');                     // the Status cells of those rows
-await grid.cellValues(admin, 'Status');                // their texts
-await grid.elements(admin, 'button', 'Actions');       // the buttons in their Actions column
-await grid.checkboxes(admin);
-
-await grid.cellValues({ Role: 'Admin' }, 'Name');      // ['COE', 'HR']: every Admin row
-```
-
-In a feature, the rows are a `| header | value |` table (names are made unique per scenario). The steps work on
-every matching row:
+In a feature ([`grid.steps.ts`](../src/steps/ui/grid.steps.ts), the same steps as agentic-qa-java), a row step ends
+in "matching" and the rows follow as a `| header | value |` table (names are made unique per scenario). Check,
+uncheck and the checks work on every matching row and fail if the rows have no checkbox; a click clicks the first:
 
 ```gherkin
-And in the grid rows where these match, "Status" is "Active"
+Then the grid is loaded
+Then the grid column "Name" contains "COE"
+Then the grid column "Name" does not contain "Nobody"
+Then the grid column "Name" shows
+  | COE |
+  | HR  |
+Then in the grid rows matching, "Status" is "Active"
   | Name | COE   |
   | Role | Admin |
-Then the grid rows where these match show a "button" in column "Actions"
-  | Role | Admin |
-When I click the "button" in column "Actions" of every grid row where these match
-  | Role | Admin |
+When I check the grid rows matching
+When I uncheck the grid rows matching
+When I check "Select" in the grid rows matching
+Then the grid rows matching are checked
+Then the grid rows matching are not checked
+When I click "Email" in the grid rows matching
+When I click the "button" in the grid rows matching
+When I click the "link" in column "Customer" of the grid rows matching
 ```
 
 How a column is found: the header cell is located by its text, then the library reads its `col-id` (AG Grid).

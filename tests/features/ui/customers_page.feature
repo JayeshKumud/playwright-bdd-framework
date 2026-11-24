@@ -20,15 +20,18 @@ Feature: Customers page
       | Alan Turing   | inactive |
       | Grace Hopper  | active   |
     When I search the customers page for this scenario's customers
-    Then the grid column "Name" shows
+    Then the grid is loaded
+    And the grid column "Name" contains "Ada Lovelace"
+    And the grid column "Name" does not contain "Nobody"
+    And the grid column "Name" shows
       | Ada Lovelace |
       | Alan Turing  |
       | Grace Hopper |
-    And in the grid rows where these match, "Status" is "inactive"
+    And in the grid rows matching, "Status" is "inactive"
       | Name   | Alan Turing |
-    And in the grid rows where these match, "Name" is "Alan Turing"
+    And in the grid rows matching, "Name" is "Alan Turing"
       | Name   | Alan Turing |
       | Status | inactive    |
-    And in the grid rows where these match, "Status" is "active"
+    And in the grid rows matching, "Status" is "active"
       | Status | active |
     And the page shows "Page 1 of 1"
