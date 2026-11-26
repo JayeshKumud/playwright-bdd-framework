@@ -4,5 +4,13 @@
     "selector": "button[type='button'][data-testid='search']:has(div:text-is('Search Data'))",
     "description": "Search Data button"
   },
-  "filterButton": { "selector": "[data-testid='filter']", "description": "filter button" }
+  "filterButton": { "selector": "[data-testid='filter']", "description": "filter button" },
+  "test1Div": {
+    "selector": ":scope > div[class*='model1']",
+    "description": "the TEST1 div of a Price grid cell: a div right inside the cell whose class contains model1 (PricePage.verifySelectionShown; searched inside the cell)"
+  },
+  "test2Div": {
+    "selector": ":scope > div[class*='model2']",
+    "description": "the TEST2 div of a Price grid cell: a div right inside the cell whose class contains model2 (PricePage.verifySelectionShown; searched inside the cell)"
+  }
 }

@@ -23,6 +23,7 @@ export type RowMatch = Record<string, string>;
  *   await grid.values({ Role: 'Admin' }, 'Name');                       // the Name of every Admin row
  *   await grid.elements({ Booking: 'Booking A' }, 'checkbox');          // the checkboxes in those rows
  *   await grid.elements({ Booking: 'Booking A' }, 'link', 'Customer');  // ... in their Customer column
+ *   await grid.cellIn(rows, 'Price');                                   // the Price cell of rows you have
  *   await grid.columnValues('Name');                                    // all names shown
  *
  * A cell shows its text, or, if it holds a text input, textarea or dropdown, that field's value (a dropdown: its
@@ -77,7 +78,17 @@ export class GridLibrary {
     if (typeof a === 'string') {
       return this.matchingCells(this.el.get('row').locator(await this.cellSelector(a)), b);
     }
-    return (await this.rows(a)).locator(await this.cellSelector(b));
+    return this.cellIn(await this.rows(a), b);
+  }
+
+  /**
+   * The cell of column `targetHeader` in a row you already have, for example from {@link rows}:
+   * `await grid.cellIn(rows, 'Price')`. Given several rows, it gives that column's cell of each, one per row: call
+   * `.all()` on the result, not on the rows (an AG Grid row has a pinned and a scrolling part, and only one of them
+   * holds the column).
+   */
+  async cellIn(row: Locator, targetHeader: string): Promise<Locator> {
+    return row.locator(await this.cellSelector(targetHeader));
   }
 
   /** Searches the whole grid for a value: every cell, in any column, that shows `value`. Looks once. */

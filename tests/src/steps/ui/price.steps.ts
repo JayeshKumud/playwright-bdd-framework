@@ -16,6 +16,7 @@ import { expect, Then, When } from '../../fixtures/test';
 //   Then the Price grid rows matching are checked
 //   Then the Price grid rows matching are not checked
 //   Then in the Price grid rows matching, "Status" is "Open"
+//   Then the "Price" cells of the Price grid rows matching show the "TEST1" selection
 //   When I click the "link" in column "Customer" of the Price grid rows matching
 //
 // For the grid of the page the scenario is on, use grid.steps.ts.
@@ -81,6 +82,15 @@ Then(
         `"${targetHeader}" in the Price grid rows matching ${describe(match)} shows "${actual}", expected "${expected}"`,
       ).toBe(true);
     }
+  },
+);
+
+// The Splited column shows ranges such as "10->20": "10" or "20" matches either side, "10->20" only that range
+// (PricePage.verifySelectionShown). TEST1 looks for the cell's model1 div, TEST2 for its model2 div.
+Then(
+  'the {string} cells of the Price grid rows matching show the {string} selection',
+  async ({ windows }, targetHeader: string, selection: string, table: DataTable) => {
+    await (await price(windows)).verifySelectionShown(rowMatch(table), selection, targetHeader);
   },
 );
 
