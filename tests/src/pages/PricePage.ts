@@ -10,6 +10,16 @@ import locators from './locators/price.json';
  *   const price = new PricePage(await windows.open(() => home.selectDropdownOption('Price Booking'), PricePage.TITLE));
  *   const price = new PricePage(await windows.window(PricePage.TITLE));   // an open Price window, no switch
  *   await (await price.grid().waitUntilLoaded()).values({ Booking: 'Booking A' }, 'Status');
+ *
+ * The grid's cells of a column in rows you already have, with GridLibrary.cellIn: call `.all()` on the cells, not
+ * on the rows (an AG Grid row has a pinned and a scrolling part, and only one holds the column):
+ *
+ *   const grid = await price.grid().waitUntilLoaded();
+ *   const rows = await grid.rows({ Booking: 'Booking A' });
+ *   for (const cell of await (await grid.cellIn(rows, 'Price')).all()) {   // one Price cell per matching row
+ *     await expect(cell).toBeVisible();
+ *   }
+ *   const bookings = await (await grid.cellIn(rows, 'Booking')).all();      // same rows, same order
  */
 export class PricePage {
   /** The browser page title (the tab) of the Price window: the text of the option that opens it. */
