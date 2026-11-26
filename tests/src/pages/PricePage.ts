@@ -28,6 +28,9 @@ export class PricePage {
   /** The grid column that shows ranges such as "10->20" (see {@link verifySelectionShown}). */
   static readonly SPLIT_HEADER = 'Splited';
 
+  /** The grid column whose cell holds the TEST1 div (see {@link test1Cells}). */
+  static readonly MARKER_HEADER = 'Price';
+
   /** What separates the two sides of a Splited range, as in "10->20". */
   static readonly RANGE = '->';
 
@@ -113,6 +116,76 @@ export class PricePage {
     }
     return this;
   }
+
+  /**
+   * The cells of column `targetHeader` in the Price grid rows that match `match` and are TEST1 rows. It matches
+   * first, then filters: of the rows showing every value of `match`, it keeps those whose Price cell holds a div
+   * whose class contains TEST1 (locator test1Marker in locators/price.json):
+   * `await price.test1Cells({ Booking: 'Booking A' }, 'Status')`. Fails if no row matches, or none of the matching
+   * rows has the TEST1 div.
+   */
+  async test1Cells(match: RowMatch, targetHeader: string): Promise<Locator[]> {
+    const grid = await this.grid().waitUntilLoaded();
+    const rows = await grid.rows(match);
+    const markerCells = await (await grid.cellIn(rows, PricePage.MARKER_HEADER)).all(); // one per row, same order
+    const targetCells = await (await grid.cellIn(rows, targetHeader)).all();
+    expect(
+      markerCells.length,
+      `"${PricePage.MARKER_HEADER}" and "${targetHeader}" cells in the Price grid rows matching ` +
+        `${JSON.stringify(match)} (one of each per row)`,
+    ).toBe(targetCells.length);
+    const test1: Locator[] = [];
+    for (let i = 0; i < targetCells.length; i++) {
+      if ((await markerCells[i].locator(this.el.selector('test1Marker')).count()) > 0) test1.push(targetCells[i]);
+    }
+    if (test1.length === 0) {
+      throw new Error(
+        `None of the ${targetCells.length} Price grid rows matching ${JSON.stringify(match)} has a TEST1 div in ` +
+          `its "${PricePage.MARKER_HEADER}" cell`,
+      );
+    }
+    return test1;
+  }
+
+  /**
+   * The cells of column `header` in the Price grid rows matching `match` whose text contains `text`
+   * (case-sensitive), as a list taken now: `await price.cellsContaining({ Booking: 'Booking A' }, 'Range',
+   * 'TESTRANGE')`. Fails if no row matches, or none of the matching rows has the text in that column.
+   */
+  async cellsContaining(match: RowMatch, header: string, text: string): Promise<Locator[]> {
+    const grid = await this.grid().waitUntilLoaded();
+    const cells: Locator[] = [];
+    for (const cell of await (await grid.cellIn(await grid.rows(match), header)).all()) {
+      if ((await cell.innerText()).includes(text)) cells.push(cell);
+    }
+    if (cells.length === 0) {
+      throw new Error(`No Price grid row matching ${JSON.stringify(match)} has "${text}" in its "${header}" cell`);
+    }
+    return cells;
+  }
+
+  /**
+   * The same cells as {@link cellsContaining}, as one filtered Locator instead of a list:
+   * `await price.cellContaining({ Booking: 'Booking A' }, 'Range', 'TESTRANGE')`. The filter runs in the browser on
+   * every use, so the Locator follows the grid after a refresh. The text is matched the same way: contained
+   * anywhere in the cell, case-sensitive, taken literally.
+   *
+   * It may find several cells: use `first()`, `nth(i)` or `all()` for actions such as click() or innerText(),
+   * which fail on a Locator that finds more than one element.
+   */
+  async cellContaining(match: RowMatch, header: string, text: string): Promise<Locator> {
+    const grid = await this.grid().waitUntilLoaded();
+    const cell = (await grid.cellIn(await grid.rows(match), header)).filter({ hasText: literally(text) });
+    if ((await cell.all()).length === 0) {
+      throw new Error(`No Price grid row matching ${JSON.stringify(match)} has "${text}" in its "${header}" cell`);
+    }
+    return cell;
+  }
+}
+
+/** A case-sensitive pattern for text contained anywhere, special characters taken literally. */
+function literally(text: string): RegExp {
+  return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 }
 
 /**
