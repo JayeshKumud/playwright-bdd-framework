@@ -1,5 +1,5 @@
 import { DataTable } from 'playwright-bdd';
-import { RowMatch } from '../../pages/GridLibrary';
+import { RowMatch, sameValue } from '../../pages/GridLibrary';
 import { PricePage } from '../../pages/PricePage';
 import { WindowNavigator } from '../../pages/WindowNavigator';
 import { expect, Then, When } from '../../fixtures/test';
@@ -76,7 +76,10 @@ Then(
     const values = await grid.values(match, targetHeader);
     expect(values.length, `a "${targetHeader}" cell in the Price grid rows matching ${describe(match)}`).toBeGreaterThan(0);
     for (const actual of values) {
-      expect(actual, `"${targetHeader}" in the Price grid rows matching ${describe(match)}`).toBe(expected);
+      expect(
+        sameValue(actual, expected),
+        `"${targetHeader}" in the Price grid rows matching ${describe(match)} shows "${actual}", expected "${expected}"`,
+      ).toBe(true);
     }
   },
 );

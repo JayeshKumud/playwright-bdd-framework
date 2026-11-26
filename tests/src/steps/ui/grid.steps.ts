@@ -1,11 +1,11 @@
 import { DataTable } from 'playwright-bdd';
 import { scenarioName } from '../../core/keys';
 import { ScenarioData } from '../../core/ScenarioData';
-import { RowMatch } from '../../pages/GridLibrary';
+import { RowMatch, sameValue } from '../../pages/GridLibrary';
 import { expect, Then, When } from '../../fixtures/test';
 
 // Steps for the data grid (GridLibrary), the same as agentic-qa-java's GridSteps. Columns are named by their header
-// text, values exactly as shown. Names in the "Name" column are made unique per scenario ("Ada Lovelace" becomes
+// text; values as shown (numbers by value: 70 is 70.00). Names in the "Name" column are made unique per scenario ("Ada Lovelace" becomes
 // "Ada Lovelace 3f9c2a1b"), like the rest of the customers steps.
 //
 //   Then the grid is loaded
@@ -74,7 +74,10 @@ Then(
     expect(values.length, `a "${targetHeader}" cell in the grid rows matching ${describe(match)}`).toBeGreaterThan(0);
     const want = unique(data, targetHeader, expected);
     for (const actual of values) {
-      expect(actual, `"${targetHeader}" in the grid rows matching ${describe(match)}`).toBe(want);
+      expect(
+        sameValue(actual, want),
+        `"${targetHeader}" in the grid rows matching ${describe(match)} shows "${actual}", expected "${want}"`,
+      ).toBe(true);
     }
   },
 );
