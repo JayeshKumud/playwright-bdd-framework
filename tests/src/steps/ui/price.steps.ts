@@ -16,6 +16,7 @@ import { expect, Then, When } from '../../fixtures/test';
 //   Then the Price grid rows matching are checked
 //   Then the Price grid rows matching are not checked
 //   Then in the Price grid rows matching, "Status" is "Open"
+//   Then in the Price grid rows matching, "Range" contains "TESTRANGE"
 //   Then the "Price" cells of the Price grid rows matching show the "TEST1" selection
 //   When I click the "link" in column "Customer" of the Price grid rows matching
 //
@@ -82,6 +83,15 @@ Then(
         `"${targetHeader}" in the Price grid rows matching ${describe(match)} shows "${actual}", expected "${expected}"`,
       ).toBe(true);
     }
+  },
+);
+
+// Passes if a cell of the column, in the matching rows, contains the text: anywhere in the cell, case-sensitive
+// (PricePage.cellContaining).
+Then(
+  'in the Price grid rows matching, {string} contains {string}',
+  async ({ windows }, header: string, text: string, table: DataTable) => {
+    await (await price(windows)).cellContaining(rowMatch(table), header, text);
   },
 );
 

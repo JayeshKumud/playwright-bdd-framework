@@ -181,6 +181,25 @@ export class PricePage {
     }
     return cell;
   }
+
+  /**
+   * The Price grid rows matching `match` whose Price cell holds a div whose class contains `classPart`
+   * (case-sensitive): `await (await price.rowsWithPriceDiv({ Booking: 'Booking A' }, 'TEST1')).all()`. Fails if
+   * there are none.
+   *
+   * The Locator keeps, of each row, the part that holds the Price cell: on an AG Grid with a pinned column, a cell
+   * of a column in the other part is not inside it. It is searched again on every use.
+   */
+  async rowsWithPriceDiv(match: RowMatch, classPart: string): Promise<Locator> {
+    const grid = await this.grid().waitUntilLoaded();
+    const priceCell = await grid.cellIn(this.page.locator(':scope'), PricePage.MARKER_HEADER); // searched in each row
+    const rows = (await grid.rows(match)).filter({ has: priceCell.locator(`div[class*='${classPart}']`) });
+    expect(
+      (await rows.all()).length,
+      `a Price grid row matching ${JSON.stringify(match)} with a "${classPart}" div in its Price cell`,
+    ).toBeGreaterThan(0);
+    return rows;
+  }
 }
 
 /** A case-sensitive pattern for text contained anywhere, special characters taken literally. */
