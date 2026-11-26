@@ -31,6 +31,9 @@ export class PricePage {
   /** The grid column whose cell holds the TEST1 div (see {@link test1Cells}). */
   static readonly MARKER_HEADER = 'Price';
 
+  /** The grid column that shows a row's unit (see {@link checkboxesWithPriceDiv}). */
+  static readonly UNIT_HEADER = 'Unit';
+
   /** What separates the two sides of a Splited range, as in "10->20". */
   static readonly RANGE = '->';
 
@@ -191,14 +194,48 @@ export class PricePage {
    * of a column in the other part is not inside it. It is searched again on every use.
    */
   async rowsWithPriceDiv(match: RowMatch, classPart: string): Promise<Locator> {
-    const grid = await this.grid().waitUntilLoaded();
-    const priceCell = await grid.cellIn(this.page.locator(':scope'), PricePage.MARKER_HEADER); // searched in each row
-    const rows = (await grid.rows(match)).filter({ has: priceCell.locator(`div[class*='${classPart}']`) });
+    const rows = await this.priceDivRows(await this.grid().waitUntilLoaded(), match, classPart);
     expect(
       (await rows.all()).length,
       `a Price grid row matching ${JSON.stringify(match)} with a "${classPart}" div in its Price cell`,
     ).toBeGreaterThan(0);
     return rows;
+  }
+
+  /**
+   * The checkboxes in column `checkboxHeader` of the Price grid rows of the given units whose Price cell holds a
+   * div whose class contains `classPart`: `await price.checkboxesWithPriceDiv(['TEST1', 'TEST2'], 'PRICE1',
+   * 'Unique')`. For each unit it filters the rows whose Unit is that unit to those whose Price cell has the div (as
+   * {@link rowsWithPriceDiv}), then takes the checkbox in their `checkboxHeader` cell. A unit without such a row is
+   * skipped; it fails if no checkbox is found at all.
+   *
+   * The checkbox column must be in the same part of the row as the Price column: on an AG Grid where one of them is
+   * pinned and the other is not, the filtered rows do not contain the checkbox and none is found.
+   */
+  async checkboxesWithPriceDiv(units: string[], classPart: string, checkboxHeader: string): Promise<Locator[]> {
+    const grid = await this.grid().waitUntilLoaded();
+    const checkboxes: Locator[] = [];
+    for (const unit of units) {
+      const rows = await this.priceDivRows(grid, { [PricePage.UNIT_HEADER]: unit }, classPart); // none: skipped
+      checkboxes.push(...(await (await grid.cellIn(rows, checkboxHeader)).locator("input[type='checkbox']").all()));
+    }
+    if (checkboxes.length === 0) {
+      throw new Error(
+        `No Price grid row of the units ${JSON.stringify(units)} has a "${classPart}" div in its ` +
+          `"${PricePage.MARKER_HEADER}" cell and a checkbox in its "${checkboxHeader}" cell (the two columns must ` +
+          'be in the same part of the row: not one pinned and the other not)',
+      );
+    }
+    return checkboxes;
+  }
+
+  /**
+   * The rows matching `match` whose Price cell holds a div whose class contains `classPart`, without failing when
+   * there are none (see {@link rowsWithPriceDiv}).
+   */
+  private async priceDivRows(grid: GridLibrary, match: RowMatch, classPart: string): Promise<Locator> {
+    const priceCell = await grid.cellIn(this.page.locator(':scope'), PricePage.MARKER_HEADER); // searched in each row
+    return (await grid.rows(match)).filter({ has: priceCell.locator(`div[class*='${classPart}']`) });
   }
 }
 

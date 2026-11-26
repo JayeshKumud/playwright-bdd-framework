@@ -17,6 +17,9 @@ import { expect, Then, When } from '../../fixtures/test';
 //   Then the Price grid rows matching are not checked
 //   Then in the Price grid rows matching, "Status" is "Open"
 //   Then in the Price grid rows matching, "Range" contains "TESTRANGE"
+//   When I check "Unique" in the Price grid rows with a "PRICE1" Price div for the units
+//     | TEST1 |
+//     | TEST2 |
 //   Then the "Price" cells of the Price grid rows matching show the "TEST1" selection
 //   When I click the "link" in column "Customer" of the Price grid rows matching
 //
@@ -82,6 +85,23 @@ Then(
         sameValue(actual, expected),
         `"${targetHeader}" in the Price grid rows matching ${describe(match)} shows "${actual}", expected "${expected}"`,
       ).toBe(true);
+    }
+  },
+);
+
+// Ticks the checkbox in a column of the Price grid rows of the table's units (one per line) whose Price cell holds
+// a div whose class contains the text (PricePage.checkboxesWithPriceDiv); a unit without such a row is skipped.
+When(
+  'I check {string} in the Price grid rows with a {string} Price div for the units',
+  async ({ windows }, checkboxHeader: string, classPart: string, table: DataTable) => {
+    const units = table.raw().map(([unit]) => unit);
+    for (const checkbox of await (await price(windows)).checkboxesWithPriceDiv(units, classPart, checkboxHeader)) {
+      await checkbox.check();
+      await expect(
+        checkbox,
+        `"${checkboxHeader}" checkbox of a Price grid row of the units ${JSON.stringify(units)} with a ` +
+          `"${classPart}" Price div is checked`,
+      ).toBeChecked();
     }
   },
 );
