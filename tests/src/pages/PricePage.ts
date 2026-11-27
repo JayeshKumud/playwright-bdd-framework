@@ -234,6 +234,33 @@ export class PricePage {
   }
 
   /**
+   * The elements a CSS selector finds inside the `header` cells of the Price grid rows matching `match`, at any
+   * depth in the cell (the same as agentic-qa-java's elementsInCell):
+   *
+   *   await (await price.elementsInCell({ Booking: 'Booking A' }, 'Price', 'span.something')).first().click();
+   *   await price.elementsInCell(match, 'Price', "span.something:text-is('TEST')");   // class and exact text
+   *   await price.elementsInCell(match, 'Price', "span.something:has-text('TEST')");  // text contains, any case
+   *   await price.elementsInCell(match, 'Price', "span[class*='price']");             // class contains "price"
+   *   await price.elementsInCell(match, 'Status', "span[title='Locked']");            // any attribute
+   *
+   * The Locator is searched again on every use; it may find several elements (one or more per row), so use
+   * first(), nth(i) or all() to act on one.
+   *
+   * @param match    column header text to the value that column must show
+   * @param header   the column whose cells hold the element, for example "Price"
+   * @param selector a CSS (or Playwright) selector, for example "span.something"
+   * @throws Error if no row matches, or no matching row has such an element in that cell
+   */
+  async elementsInCell(match: RowMatch, header: string, selector: string): Promise<Locator> {
+    const grid = await this.grid().waitUntilLoaded();
+    const elements = (await grid.cells(match, header)).locator(selector);
+    if ((await elements.all()).length === 0) {
+      throw new Error(`No Price grid row matching ${JSON.stringify(match)} has "${selector}" in its "${header}" cell`);
+    }
+    return elements;
+  }
+
+  /**
    * The Price grid rows matching `match` whose Price cell holds a div whose class contains `classPart`
    * (case-sensitive): `await (await price.rowsWithPriceDiv({ Booking: 'Booking A' }, 'TEST1')).all()`. Fails if
    * there are none.
