@@ -62,6 +62,54 @@ export class PricePage {
   }
 
   /**
+   * Selects bookings in the TEST1 dropdown (test1Input): opens it and clicks each option, the li whose p shows
+   * that text: `await price.selectBookings('Booking A', 'Booking B')`. The list is left open; close it with
+   * {@link closeDropdown}, or use {@link applySearchs}.
+   */
+  async selectBookings(...bookings: string[]): Promise<this> {
+    await this.selectFromDropdown('test1Input', bookings);
+    return this;
+  }
+
+  /** Selects days in the TEST2 dropdown (test2Input), like {@link selectBookings}. */
+  async selectDays(...days: string[]): Promise<this> {
+    await this.selectFromDropdown('test2Input', days);
+    return this;
+  }
+
+  /**
+   * Selects bookings and days, closing each list with Escape (the same as agentic-qa-java's applySearchs):
+   * `await price.applySearchs(['Booking A'], ['Monday', 'Friday'])`. The bookings list is closed before the days
+   * dropdown is opened, so it cannot cover the days input, and the days list is closed at the end.
+   */
+  async applySearchs(bookings: string[], days: string[]): Promise<this> {
+    await this.selectBookings(...bookings);
+    await this.closeDropdown();
+    await this.selectDays(...days);
+    await this.closeDropdown();
+    return this;
+  }
+
+  /** Closes the open dropdown list with Escape and waits until it is gone. */
+  async closeDropdown(): Promise<this> {
+    await this.page.keyboard.press('Escape');
+    await this.el.get('dropdownList').waitFor({ state: 'hidden' });
+    return this;
+  }
+
+  /**
+   * Opens a dropdown by clicking its input, then clicks each option. Before every option it checks that the list
+   * is open, and opens it again if a click closed it (some dropdowns close after each choice).
+   */
+  private async selectFromDropdown(input: string, options: string[]): Promise<void> {
+    await this.el.get(input).click();
+    for (const option of options) {
+      if (!(await this.el.get('dropdownList').isVisible())) await this.el.get(input).click();
+      await this.el.get('dropdownListItem', { OPTION: option }).click(); // waits for the list and the option
+    }
+  }
+
+  /**
    * Waits for the grid, then ticks the checkbox in column `checkboxHeader` of every row that shows all the values
    * of `match`: `await price.checkGridRow({ Booking: 'Booking A' }, 'Select')`.
    */

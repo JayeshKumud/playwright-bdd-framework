@@ -79,17 +79,17 @@ which creates `page`, which opens the browser context and the page.
 `AfterStep` screenshot and the failure screenshot use that window, not always the first one.
 
 ```ts
-const price = await windows.open(() => home.selectDropdownOption('Price Booking'), 'Price Booking');
-// the popup is loaded, its title checked, and it is now the current window
-const pricePage = new PricePage(price);
-
-await windows.switchTo('Customer Window');   // an open window, by its title
-await windows.backToFirst();
-windows.current;                               // the window the scenario is on
+const price = new PricePage(await windows.switchToWindow(Window.PRICE_BOOKING));   // via the dropdown
+await windows.switchToWindow(Window.CUSTOMER_WINDOW);   // from the Price window's dropdown
+await windows.switchToWindow(Window.PRICE_BOOKING);     // back: already open, nothing is clicked
+await windows.switchToWindow(Window.HOME);              // the first window
+await windows.open(() => someLink.click(), 'Report');   // a window opened by any other action
+windows.current;                                        // the window the scenario is on
 ```
 
 | Method | Does |
 |---|---|
+| `switchToWindow(window)` | one of the app's windows ([`Window`](../src/pages/Window.ts)): `HOME` is the first window; one opened earlier and still showing is brought to the front; otherwise it is opened from the current window's dropdown (below) |
 | `open(action, title?, ready?)` | runs `ready` (if given), then the action; finds the window that opened (see below), waits for it to load, checks its title, makes it current |
 | `switchTo(title)` | makes an open window current, by title; fails with `No open window has the title "..."` |
 | `window(title)` | an open window by title, without making it current (for page objects of one window) |
@@ -115,11 +115,46 @@ shows up, it fails with the open windows' titles:
 Opened "Unique Window" from "Price Booking", but within 30000 ms no new window opened and no open window has the title "Unique Window". Open windows: ["Home","Unique Window"]
 ```
 
-```ts
-const unique = new UniquePage(
-  await windows.open(() => openUniqueFromPrice(), UniquePage.TITLE, () => pricePage.verifyDisplayed()),
-);
+### The app's windows and the dropdown
+
+[`Window`](../src/pages/Window.ts) lists the app's windows, the same as agentic-qa-java's `Window` enum. Each
+has the text of its dropdown option, which is also its title, and the check of its page object:
+
+| Window | Text | Opened from | Check |
+|---|---|---|---|
+| `HOME` | Home | (the first window) | none |
+| `PRICE_BOOKING` | Price Booking | the home page's dropdown | `PricePage.verifyDisplayed` (title, Search Data button) |
+| `CUSTOMER_WINDOW` | Customer Window | the Price window's dropdown | none |
+| `UNIQUE_WINDOW` | Unique Window | the Price window's dropdown; replaces the Price window | `UniquePage.verifyDisplayed` (title) |
+
+`switchToWindow` opens a window like this: it checks that the current window is ready (its own check and its
+dropdown button), then [`SharedElements.selectDropdownOption`](../src/pages/SharedElements.ts) clicks the dropdown
+button and the option (`dropdownButton` and `dropdownOption` in `locators/common.json`; if the list closes before
+the option is clicked, it tries once more). `open` then finds the window, checks its title, and the new window's
+own check runs. Adding a window: add an entry to `Window` with its exact option text.
+
+The steps are in [`windows.steps.ts`](../src/steps/ui/windows.steps.ts), the same as agentic-qa-java's
+`WindowSteps`:
+
+```gherkin
+When I open the Price Booking window
+And I open the filter on the Price window
+And I apply the search on the Price window
+  | bookings | Booking A | Booking C |
+  | days     | Monday    | Friday    |
+And I open the Customer window
+And I go back to the "Price Booking" window
+Then the Price window is displayed
+When I open the Unique window
+And I switch to the "Home" window
 ```
+
+`I switch to the "..." window` and `I go back to the "..." window` take the window's text; an unknown text fails
+with the list of known windows. `I apply the search` selects the bookings (TEST1) and days (TEST2) with
+`PricePage.applySearchs`, closing each list with Escape; empty cells are skipped.
+
+These need the real application, not the sample app, so there is no feature for them in `features/`: a
+`@windows` feature would fail `npm test` against the sample app.
 
 [`UniquePage`](../src/pages/UniquePage.ts) is the Unique window, as in agentic-qa-java; its locators go in
 `locators/unique.json` (empty for now).

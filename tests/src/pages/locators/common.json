@@ -1,0 +1,11 @@
+{
+  "_comment": "Locators that are the same on every window (SharedElements). Name -> selector, or { selector, description }. Keys starting with _ are ignored. The same as agentic-qa-java's locators/common.json.",
+  "dropdownButton": {
+    "selector": "button[data-testid^='dropdown-menu']",
+    "description": "the window's dropdown button (one per window: Add tool, Price Booking, Customer Window)"
+  },
+  "dropdownOption": {
+    "selector": "ul[aria-label='Dropdown Menu'] li:has(span:text-is('OPTION'))",
+    "description": "option OPTION of the open dropdown: the li whose span shows OPTION"
+  }
+}

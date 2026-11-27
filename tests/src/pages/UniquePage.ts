@@ -5,9 +5,9 @@ import locators from './locators/unique.json';
 /**
  * Page object of the Unique window (the same as agentic-qa-java's UniquePage): opened from the Price window's
  * dropdown, and the app loads it into the Price window itself, so no new browser window appears.
- * WindowNavigator.open finds it by its title:
+ * WindowNavigator finds it by its title:
  *
- *   const unique = new UniquePage(await windows.open(() => openUniqueFromPrice(), UniquePage.TITLE, () => price.verifyDisplayed()));
+ *   const unique = new UniquePage(await windows.switchToWindow(Window.UNIQUE_WINDOW));
  *
  * After that the window no longer shows Price Booking, so `windows.window(PricePage.TITLE)` fails until Price is
  * opened again. Selectors live in locators/unique.json.

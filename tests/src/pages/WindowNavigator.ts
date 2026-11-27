@@ -1,5 +1,7 @@
 import { expect, Page } from '@playwright/test';
 import { env } from '../config/env';
+import { SharedElements } from './SharedElements';
+import { allWindows, AppWindow, Window } from './Window';
 
 /**
  * Which window a scenario is on. It has no browser of its own, so hooks can ask for it without starting one:
@@ -13,11 +15,11 @@ export class UiState {
  * Moves a scenario between the app's windows (popups). Steps and the screenshot hooks act on `current`: the first
  * window, or the window the last switch went to.
  *
- *   const price = await windows.open(() => home.selectDropdownOption('Price Booking'), 'Price Booking');
- *   await windows.open(() => openUniqueFromPrice(), UniquePage.TITLE, () => pricePage.verifyDisplayed());
- *   new PricePage(price) ...
- *   await windows.switchTo('Customer Window');   // an open window, by its title
- *   await windows.backToFirst();
+ *   const price = new PricePage(await windows.switchToWindow(Window.PRICE_BOOKING));   // via the dropdown
+ *   const unique = new UniquePage(await windows.switchToWindow(Window.UNIQUE_WINDOW)); // from Price, same window
+ *   await windows.switchToWindow(Window.HOME);                                         // the first window
+ *   await windows.open(() => someLink.click(), 'Report');    // a window opened by any other action
+ *   await windows.switchTo('Customer Window');               // an open window, by its title
  */
 export class WindowNavigator {
   private readonly windows = new Map<string, Page>();
@@ -52,7 +54,7 @@ export class WindowNavigator {
    * 3. the action runs before the current window is ready, or the app opens the window only after a slow call:
    *    pass `ready` (for example `() => price.verifyDisplayed()`), and the wait lasts up to NAVIGATION_TIMEOUT_MS.
    *
-   *   await windows.open(() => openUniqueFromPrice(), UniquePage.TITLE, () => price.verifyDisplayed());
+   *   await windows.open(() => new SharedElements(price.page).selectDropdownOption('Unique Window'), UniquePage.TITLE, () => price.verifyDisplayed());
    *
    * @param openAction what opens the window, for example a click
    * @param title      the window's expected page title; it is also its name for switchTo
@@ -116,6 +118,34 @@ export class WindowNavigator {
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
+  }
+
+  /**
+   * Switches to one of the app's windows, opening it if needed, so the next steps act on it (the same as
+   * agentic-qa-java's WindowNavigator.switchToWindow):
+   *
+   * - Window.HOME: the scenario's first window;
+   * - a window opened earlier in this scenario and still showing: brought to the front, nothing is clicked;
+   * - otherwise it is opened from the current window: once the current window is ready (its own check and its
+   *   dropdown button), the dropdown button is clicked, then the option `window.text`; the window is found
+   *   however the app opens it ({@link open}), its title must be `window.text`, then its own check runs.
+   *
+   * @return the window, for its page object: `new PricePage(await windows.switchToWindow(Window.PRICE_BOOKING))`
+   */
+  async switchToWindow(window: AppWindow): Promise<Page> {
+    if (window === Window.HOME) return this.backToFirst();
+    const known = this.windows.get(window.text);
+    if (known && !known.isClosed()) return this.makeCurrent(known);
+
+    const from = this.current;
+    const shared = new SharedElements(from);
+    const page = await this.open(() => shared.selectDropdownOption(window.text), window.text, async () => {
+      const fromTitle = await titleOf(from);
+      await allWindows.find((w) => w.text === fromTitle)?.verify?.(from);
+      await expect(shared.dropdownButton(), `the dropdown button of "${fromTitle}"`).toBeVisible();
+    });
+    await window.verify?.(page);
+    return page;
   }
 
   /** Switches to an open window by its page title. */

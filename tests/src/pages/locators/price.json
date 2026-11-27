@@ -5,6 +5,22 @@
     "description": "Search Data button"
   },
   "filterButton": { "selector": "[data-testid='filter']", "description": "filter button" },
+  "test1Input": {
+    "selector": "div.dropdownk2-container:has(p:text-is('TEST1')) input[data-testid='dropdownk2-input']",
+    "description": "input of the TEST1 dropdown (bookings, PricePage.selectBookings)"
+  },
+  "test2Input": {
+    "selector": "div.dropdownk2-container:has(p:text-is('TEST2')) input[data-testid='dropdownk2-input']",
+    "description": "input of the TEST2 dropdown (days, PricePage.selectDays)"
+  },
+  "dropdownList": {
+    "selector": "ul.dropdownK5",
+    "description": "option list of the open TEST1/TEST2 dropdown (only there while open)"
+  },
+  "dropdownListItem": {
+    "selector": "ul.dropdownK5 li:has(p:text-is('OPTION'))",
+    "description": "option OPTION of the open TEST1/TEST2 dropdown: the li whose p shows OPTION"
+  },
   "test1Div": {
     "selector": ":scope > div[class*='model1']",
     "description": "the TEST1 div of a Price grid cell: a div right inside the cell whose class contains model1 (PricePage.verifySelectionShown; searched inside the cell)"
