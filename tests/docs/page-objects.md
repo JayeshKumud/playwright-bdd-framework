@@ -305,6 +305,8 @@ new GridLibrary(page, undefined, 'Booking');                      // without a p
 Grids with exactly the same columns cannot be told apart by a column; that would need picking by a container
 locator, which is not built.
 
+Everything about several grids, in more detail: [multiple-grids.md](multiple-grids.md).
+
 ## Adding a page
 
 1. `src/pages/locators/orders.json` with the elements (see [locators.md](locators.md)).

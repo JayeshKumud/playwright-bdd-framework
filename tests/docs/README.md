@@ -25,6 +25,7 @@ How the framework works, and what each part of the Java framework (agentic-qa-ja
 |---|---|
 | [api.md](api.md) | API clients on the browser context, sharing data with GUI steps, clean-up |
 | [page-objects.md](page-objects.md) | page objects as fixtures, popups (`windows`), grids (`GridLibrary`) |
+| [multiple-grids.md](multiple-grids.md) | several grids on one page: `I use the grid with column "..."`, `grid('column')`, `root()`, how long a choice lasts, errors, limits |
 | [locators.md](locators.md) | locator JSON files and `PageElements` |
 | [locator-guide.md](locator-guide.md) | finding an element and choosing a selector that keeps working |
 | [messaging.md](messaging.md) | ActiveMQ over AMQP 1.0: queues, topics, selectors, isolation |
