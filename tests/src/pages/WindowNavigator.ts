@@ -1,5 +1,6 @@
 import { expect, Page } from '@playwright/test';
 import { env } from '../config/env';
+import { useGrid } from './GridLibrary';
 import { SharedElements } from './SharedElements';
 import { allWindows, AppWindow, Window } from './Window';
 
@@ -72,6 +73,7 @@ export class WindowNavigator {
     const window = await this.findOpened(source, sourceTitle, before, title);
 
     await window.waitForLoadState();
+    if (window === source) useGrid(window, undefined); // replaced in place: a grid picked for the old page is gone
     if (title !== undefined) {
       await expect(window, `the new window is "${title}"`).toHaveTitle(title);
       for (const [name, page] of this.windows) {

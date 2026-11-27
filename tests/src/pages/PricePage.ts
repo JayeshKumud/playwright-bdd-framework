@@ -50,9 +50,12 @@ export class PricePage {
     return this;
   }
 
-  /** The Price window's data grid (AG Grid). */
-  grid(): GridLibrary {
-    return new GridLibrary(this.page);
+  /**
+   * The Price window's data grid (AG Grid): its only grid, or the one picked for the window (the step "I use the
+   * grid with column ..."); with a column, the grid that has that column: `price.grid('Booking')`.
+   */
+  grid(column?: string): GridLibrary {
+    return column === undefined ? new GridLibrary(this.page) : new GridLibrary(this.page, undefined, column);
   }
 
   /** Clicks the filter button. */

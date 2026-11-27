@@ -256,6 +256,55 @@ A page object passes its grid's file: `new GridLibrary(this.page, tableLocators)
 new file with the same keys (`root`, `header`, `headerCell` with `HEADER`, `rowsOrNoRows`, `row`, `cell`, and
 the element types); `loadingOverlay` and `columnIndexAttribute` are optional.
 
+Every selector except `root` is searched **inside the grid's root**, so write them relative to it: `thead`, not
+`#customers-table thead` (Playwright does not count the root itself when it searches inside it, so a selector that
+repeats the root's id finds nothing).
+
+### Several grids on one page
+
+Some windows of the real application show two AG Grids at once. `GridLibrary` works on one grid at a time: every
+lookup is inside its `root`, so the two grids' rows (both have a `row-index` 0) are never mixed. On such a window,
+pick the grid by a column only it has. The same as agentic-qa-java (its `docs/multiple-grids.md`).
+
+```gherkin
+When I open the Price Booking window
+And I use the grid with column "Booking"
+Then the Price grid is loaded
+When I check the Price grid rows matching
+  | Booking | Booking A |
+And I use the grid with column "Customer"
+When I use the only grid
+```
+
+| Step | Does |
+|---|---|
+| `When I use the grid with column "Booking"` | picks the current window's grid that has that column (AG Grid) and waits until it has loaded |
+| `When I use the only grid` | goes back to the window's single grid |
+
+After the step, every grid on that window is the picked one: `price.grid()`, the Price grid steps and the
+`PricePage` methods they call (`elementsInCell`, `verifySelectionShown`, ...). The choice belongs to the window
+(other windows keep theirs), is dropped when the window's page is replaced in place (Price Booking becoming Unique
+Window), and ends with the scenario.
+
+In code:
+
+```ts
+const bookings = await price.grid('Booking').waitUntilLoaded();   // the grid with a Booking column, always
+await bookings.values({ Booking: 'Booking A' }, 'Status');        // inside that grid only
+await bookings.root().locator("button:has-text('Export')").click(); // the grid element itself
+useGrid(page, 'Booking');                                         // what the step does; undefined = only grid
+new GridLibrary(page, undefined, 'Booking');                      // without a page object
+```
+
+| Message | Means | Fix |
+|---|---|---|
+| `2 grids on <url>: pick one by a column only it has, ...` | a grid step ran on a window with two grids and none was picked | add `I use the grid with column "..."` before it |
+| `2 grids have a "Status" column on <url>: ...` | both grids have the picked column | pick a column only one of them has |
+| `the grid with the column "Bookings" is shown` (expect timeout) | no grid has that column | check the header text exactly as shown |
+
+Grids with exactly the same columns cannot be told apart by a column; that would need picking by a container
+locator, which is not built.
+
 ## Adding a page
 
 1. `src/pages/locators/orders.json` with the elements (see [locators.md](locators.md)).

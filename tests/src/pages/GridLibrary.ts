@@ -37,34 +37,84 @@ export type RowMatch = Record<string, string>;
  * (AG Grid), else by its position under the header (a plain HTML table). The selectors come from a locator file:
  * locators/grid.ag-grid.json by default, or one per grid such as locators/grid.customers-table.json.
  * Rows that share a row-index (AG Grid's pinned and scrolling parts) are returned together.
+ *
+ * Every lookup searches inside one grid (its `root` in the locator file), never the whole page, so a page with two
+ * grids cannot mix their rows (both have a row-index 0). `price.grid()` is the window's only grid, or the one
+ * picked for the window with {@link useGrid} (the step "I use the grid with column ..."); `price.grid('Booking')`
+ * is the grid with a Booking column. The same as agentic-qa-java (docs/multiple-grids.md there).
  */
 export class GridLibrary {
   private readonly el: PageElements;
   private readonly columnKeys = new Map<string, string>();
+  /** The grid this library works on: every lookup is inside it. */
+  private readonly gridRoot: Locator;
 
   /**
    * @param page     the window the grid is in
    * @param locators the grid's locator file, AG Grid by default
+   * @param column   the header text of a column only this grid has, for windows with several grids; by default
+   *                 the column picked for the window with {@link useGrid}, else none (the window's only grid)
    */
   constructor(
     private readonly page: Page,
     private readonly locators: LocatorFile = agGridLocators,
+    private readonly column: string | undefined = chosenGridColumn(page),
   ) {
     this.el = new PageElements(page, locators, 'grid locator file');
+    const all = this.el.get('root');
+    this.gridRoot =
+      column === undefined ? all : all.filter({ has: this.el.get('headerCell', { HEADER: column }) });
+  }
+
+  /**
+   * The grid element itself (`root` in the locator file, AG Grid's `.ag-root-wrapper`), for anything this class
+   * has no method for. Searches from it stay inside this grid:
+   *
+   *   const bookings = (await price.grid('Booking').waitUntilLoaded()).root();
+   *   await bookings.locator("button:has-text('Export')").click();   // that grid's Export button only
+   *
+   * Call {@link waitUntilLoaded} first if the grid may still be loading; it also fails clearly if the choice finds
+   * several grids.
+   */
+  root(): Locator {
+    return this.gridRoot;
   }
 
   /**
    * Waits until the grid has loaded: grid and header shown, loading overlay gone (if the grid has one), and a row
-   * or the "no rows" message shown.
+   * or the "no rows" message shown. Fails clearly when the window has several grids and none was picked, or when
+   * several grids have the picked column.
    */
   async waitUntilLoaded(): Promise<this> {
-    await expect(this.el.get('root'), 'the grid is shown').toBeVisible();
-    await expect(this.el.get('header'), "the grid's header is shown").toBeVisible();
-    if (this.locators.loadingOverlay) {
-      await expect(this.el.get('loadingOverlay'), 'the grid has finished loading').toBeHidden();
+    await expect(this.gridRoot.first(), `${this.name()} is shown`).toBeVisible();
+    const grids = await this.gridRoot.count();
+    if (grids > 1) {
+      throw new Error(
+        this.column === undefined
+          ? `${grids} grids on ${this.page.url()}: pick one by a column only it has, with the step ` +
+              `'I use the grid with column "Booking"' or price.grid('Booking')`
+          : `${grids} grids have a "${this.column}" column on ${this.page.url()}: pick the grid by a column only it has`,
+      );
     }
-    await expect(this.el.get('rowsOrNoRows').first(), 'a grid row or the "no rows" message is shown').toBeVisible();
+    await expect(this.inGrid('header'), `the header of ${this.name()} is shown`).toBeVisible();
+    if (this.locators.loadingOverlay) {
+      await expect(this.inGrid('loadingOverlay'), `${this.name()} has finished loading`).toBeHidden();
+    }
+    await expect(
+      this.inGrid('rowsOrNoRows').first(),
+      `a row or the "no rows" message of ${this.name()} is shown`,
+    ).toBeVisible();
     return this;
+  }
+
+  /** "the grid", or 'the grid with the column "Booking"', for messages. */
+  private name(): string {
+    return this.column === undefined ? 'the grid' : `the grid with the column "${this.column}"`;
+  }
+
+  /** An element of the locator file, searched inside this grid. */
+  private inGrid(name: string, params: Record<string, string> = {}): Locator {
+    return this.gridRoot.locator(this.el.selector(name, params));
   }
 
   /**
@@ -76,7 +126,7 @@ export class GridLibrary {
   cells(match: RowMatch, targetHeader: string): Promise<Locator>;
   async cells(a: string | RowMatch, b: string): Promise<Locator> {
     if (typeof a === 'string') {
-      return this.matchingCells(this.el.get('row').locator(await this.cellSelector(a)), b);
+      return this.matchingCells(this.inGrid('row').locator(await this.cellSelector(a)), b);
     }
     return this.cellIn(await this.rows(a), b);
   }
@@ -93,12 +143,12 @@ export class GridLibrary {
 
   /** Searches the whole grid for a value: every cell, in any column, that shows `value`. Looks once. */
   async cellWithValue(value: string): Promise<Locator> {
-    return this.matchingCells(this.el.get('row').locator(this.el.selector('cell')), value);
+    return this.matchingCells(this.inGrid('row').locator(this.el.selector('cell')), value);
   }
 
   /** Tells whether column `header` shows `value`, waiting up to the expect timeout for it. */
   async contains(header: string, value: string): Promise<boolean> {
-    const cells = this.el.get('row').locator(await this.cellSelector(header));
+    const cells = this.inGrid('row').locator(await this.cellSelector(header));
     try {
       await expect.poll(async () => (await this.scan(cells, value)).some((c) => c.matches)).toBe(true);
       return true;
@@ -141,7 +191,7 @@ export class GridLibrary {
    * of the text input, textarea or dropdown it holds.
    */
   async columnValues(header: string): Promise<string[]> {
-    const cells = this.el.get('row').locator(await this.cellSelector(header));
+    const cells = this.inGrid('row').locator(await this.cellSelector(header));
     return (await this.scan(cells)).map((c) => c.value.trim());
   }
 
@@ -153,7 +203,7 @@ export class GridLibrary {
   private async matchRows(match: RowMatch): Promise<Locator> {
     const entries = Object.entries(match);
     if (entries.length === 0) throw new Error('A grid row match needs at least one column and value');
-    const rows = this.el.get('row');
+    const rows = this.inGrid('row');
     const columns: [Locator, string][] = [];
     for (const [header, value] of entries) columns.push([rows.locator(await this.cellSelector(header)), value]);
     let keys: string[] = [];
@@ -174,7 +224,7 @@ export class GridLibrary {
     return keys
       .map((key) =>
         key.startsWith('index:')
-          ? this.page.locator(`${this.el.selector('row')}[row-index='${key.slice('index:'.length)}']`)
+          ? this.gridRoot.locator(`${this.el.selector('row')}[row-index='${key.slice('index:'.length)}']`)
           : rows.nth(Number(key.slice('position:'.length))),
       )
       .reduce((all, next) => all.or(next));
@@ -183,12 +233,16 @@ export class GridLibrary {
   /** The cells of `cells` that show `value`, as they are now; a locator matching nothing if there are none. */
   private async matchingCells(cells: Locator, value: string): Promise<Locator> {
     const found = (await this.scan(cells, value)).flatMap((c, i) => (c.matches ? [cells.nth(i)] : []));
-    return found.length === 0 ? this.page.locator(':not(*)') : found.reduce((all, next) => all.or(next));
+    return found.length === 0 ? this.gridRoot.locator(':not(*)') : found.reduce((all, next) => all.or(next));
   }
 
   /** What each cell of `cells` shows and, if `value` is given, whether it shows it (see {@link scanCells}). */
   private scan(cells: Locator, value?: string): Promise<ScannedCell[]> {
-    return cells.evaluateAll(scanCells, { rowSelector: this.el.selector('row'), want: value ?? null });
+    return cells.evaluateAll(scanCells, {
+      rootSelector: this.el.selector('root'),
+      rowSelector: this.el.selector('row'),
+      want: value ?? null,
+    });
   }
 
   /** The selector of a column's cells, by col-id or by the header's position. */
@@ -203,8 +257,8 @@ export class GridLibrary {
   private async columnKey(header: string): Promise<string> {
     const known = this.columnKeys.get(header);
     if (known !== undefined) return known;
-    const headerCell = this.el.get('headerCell', { HEADER: header }).first();
-    await expect(headerCell, `the grid column "${header}" is shown`).toBeVisible();
+    const headerCell = this.inGrid('headerCell', { HEADER: header }).first();
+    await expect(headerCell, `the column "${header}" of ${this.name()} is shown`).toBeVisible();
     const colId = await headerCell.getAttribute('col-id');
     const key = colId
       ? `[col-id='${colId}']`
@@ -218,6 +272,29 @@ export class GridLibrary {
     const name = elementType.trim().toLowerCase();
     return (ELEMENT_TYPES as readonly string[]).includes(name) ? this.el.selector(name) : elementType.trim();
   }
+}
+
+/**
+ * Per window: the column that picks its grid, for windows with several grids. A WeakMap keyed by the window, so a
+ * choice ends with the window (each scenario has its own windows) and parallel workers never share one.
+ */
+const gridColumns = new WeakMap<Page, string>();
+
+/**
+ * Makes every GridLibrary created for this window (so `price.grid()` and the grid steps) the grid with this column,
+ * the step "I use the grid with column ...". The choice belongs to the window; other windows keep theirs.
+ *
+ * @param window the window
+ * @param column the header text of a column only that grid has; undefined = the window's only grid again
+ */
+export function useGrid(window: Page, column: string | undefined): void {
+  if (column === undefined) gridColumns.delete(window);
+  else gridColumns.set(window, column);
+}
+
+/** The column picked for a window with {@link useGrid}, or undefined for its only grid. */
+export function chosenGridColumn(window: Page): string | undefined {
+  return gridColumns.get(window);
 }
 
 /** `"Name" is "COE" and "Role" is "Admin"`, for messages. */
@@ -250,7 +327,7 @@ interface ScannedCell {
   value: string;
   /** Whether it shows the wanted value (false when none was given). */
   matches: boolean;
-  /** Its row: "index:<row-index>" for an AG Grid row, else "position:<n>" among all the grid's rows. */
+  /** Its row: "index:<row-index>" for an AG Grid row, else "position:<n>" among the rows of its grid. */
   rowKey: string;
 }
 
@@ -263,7 +340,7 @@ interface ScannedCell {
  */
 function scanCells(
   cells: Element[],
-  { rowSelector, want }: { rowSelector: string; want: string | null },
+  { rootSelector, rowSelector, want }: { rootSelector: string; rowSelector: string; want: string | null },
 ): ScannedCell[] {
   const norm = (s: string | null) => (s ?? '').replace(/\s+/g, ' ').trim();
   const number = (s: string) =>
@@ -280,17 +357,19 @@ function scanCells(
           .map((o) => o.textContent ?? '')
           .join(' ')
       : (f as HTMLInputElement | HTMLTextAreaElement).value;
-  const allRows = Array.from(document.querySelectorAll(rowSelector));
   return cells.map((cell) => {
     const fields = Array.from(
       cell.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea, select'),
     );
     const row = cell.closest(rowSelector);
     const rowIndex = row?.getAttribute('row-index');
+    // positions count within the cell's own grid, as GridLibrary's row lookups do (rows of the grid's root)
+    const rowsOf = (c: Element) =>
+      Array.from((c.closest(rootSelector) ?? document).querySelectorAll(rowSelector));
     return {
       value: fields.length ? fields.map(shown).join(' ') : (cell.textContent ?? ''),
       matches: want !== null && (same(cell.textContent) || fields.some((f) => same(shown(f)))),
-      rowKey: rowIndex != null ? `index:${rowIndex}` : `position:${row ? allRows.indexOf(row) : -1}`,
+      rowKey: rowIndex != null ? `index:${rowIndex}` : `position:${row ? rowsOf(cell).indexOf(row) : -1}`,
     };
   });
 }

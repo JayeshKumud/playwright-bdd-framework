@@ -1,7 +1,7 @@
 import { DataTable } from 'playwright-bdd';
 import { scenarioName } from '../../core/keys';
 import { ScenarioData } from '../../core/ScenarioData';
-import { RowMatch, sameValue } from '../../pages/GridLibrary';
+import { GridLibrary, RowMatch, sameValue, useGrid } from '../../pages/GridLibrary';
 import { expect, Then, When } from '../../fixtures/test';
 
 // Steps for the data grid (GridLibrary), the same as agentic-qa-java's GridSteps. Columns are named by their header
@@ -33,8 +33,25 @@ import { expect, Then, When } from '../../fixtures/test';
 //
 // The element type is checkbox, radio, button, link, input, dropdown or image, or a CSS selector such as
 // "[data-testid='edit']".
+//
+// On a window with several grids, pick one first by a column only it has; every later grid step on that window
+// (these and the Price grid steps) then works on it, until another is picked. The same as agentic-qa-java:
+//
+//   When I use the grid with column "Booking"
+//   When I use the only grid
 
 const CHECKBOX = 'checkbox';
+
+// Picks the current window's grid with this column (an AG Grid), and waits until it has loaded, so a column no grid
+// or several grids have fails here. The choice belongs to the window; other windows keep theirs.
+When('I use the grid with column {string}', async ({ windows }, column: string) => {
+  useGrid(windows.current, column);
+  await new GridLibrary(windows.current).waitUntilLoaded();
+});
+
+When('I use the only grid', async ({ windows }) => {
+  useGrid(windows.current, undefined);
+});
 
 Then('the grid is loaded', async ({ customersPage }) => {
   await customersPage.grid().waitUntilLoaded();
