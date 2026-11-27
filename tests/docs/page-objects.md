@@ -90,12 +90,39 @@ windows.current;                               // the window the scenario is on
 
 | Method | Does |
 |---|---|
-| `open(action, title?)` | runs the action, waits for the new window, waits for it to load, checks its title, makes it current |
+| `open(action, title?, ready?)` | runs `ready` (if given), then the action; finds the window that opened (see below), waits for it to load, checks its title, makes it current |
 | `switchTo(title)` | makes an open window current, by title; fails with `No open window has the title "..."` |
 | `window(title)` | an open window by title, without making it current (for page objects of one window) |
 | `backToFirst()` | makes the first window current |
 | `current` | the current window |
 | `first` | the scenario's first window |
+
+`open` does not need the current window to be the new window's opener. After the action it checks every 250 ms,
+up to `NAVIGATION_TIMEOUT_MS`, for:
+
+1. **a new window** in the browser context, whichever window opened it (the home window may open them all);
+2. **an already open window** with the title: the app reused a named window (`window.open(url, name)`);
+3. **the current window itself** with the title: the app loaded the new page into the window it was opened
+   from. The Unique window does this: it replaces the Price window. The old title is then forgotten, so
+   `windows.window(PricePage.TITLE)` fails until Price is opened again.
+
+Cases 2 and 3 need `title`. Pass `ready` when the action may run before the current window is ready, for
+example `() => pricePage.verifyDisplayed()`. The log says which case it was (`[WINDOW] ... opened a new
+window`, `... is an already open window (reused)`, `... replaced "Price Booking" in the same window`). When none
+shows up, it fails with the open windows' titles:
+
+```text
+Opened "Unique Window" from "Price Booking", but within 30000 ms no new window opened and no open window has the title "Unique Window". Open windows: ["Home","Unique Window"]
+```
+
+```ts
+const unique = new UniquePage(
+  await windows.open(() => openUniqueFromPrice(), UniquePage.TITLE, () => pricePage.verifyDisplayed()),
+);
+```
+
+[`UniquePage`](../src/pages/UniquePage.ts) is the Unique window, as in agentic-qa-java; its locators go in
+`locators/unique.json` (empty for now).
 
 A page object for a popup is created in the step, with the popup's `Page` (`new PricePage(price)`), because
 the popup does not exist when the fixtures are set up.

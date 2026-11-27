@@ -1,0 +1,3 @@
+{
+  "_comment": "Locators of the Unique window (UniquePage), opened from the Price window's dropdown (the Unique Window option); the app shows it in the Price window itself. Name -> selector, or { selector, description }. Keys starting with _ are ignored. The same as agentic-qa-java's locators/uniquepage.json."
+}
