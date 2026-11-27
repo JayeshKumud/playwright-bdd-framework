@@ -21,6 +21,7 @@ import { expect, Then, When } from '../../fixtures/test';
 //     | TEST1 |
 //     | TEST2 |
 //   Then the "Price" cells of the Price grid rows matching show the "TEST1" selection
+//   Then the Price grid rows matching have "span.something:text-is('TEST')" in column "Price"
 //   When I click the "link" in column "Customer" of the Price grid rows matching
 //
 // For the grid of the page the scenario is on, use grid.steps.ts.
@@ -121,6 +122,23 @@ Then(
   'the {string} cells of the Price grid rows matching show the {string} selection',
   async ({ windows }, targetHeader: string, selection: string, table: DataTable) => {
     await (await price(windows)).verifySelectionShown(rowMatch(table), selection, targetHeader);
+  },
+);
+
+// An element a selector finds in a column of the matching rows (PricePage.elementsInCell), and visible:
+//   Then the Price grid rows matching have "span.something:text-is('TEST')" in column "Price"
+//     | Booking | Booking A |
+// span.something = a span with the class something; :text-is('TEST') = text exactly TEST;
+// :has-text('TEST') = text contains TEST, any case; span[class*='some'] = class contains some.
+Then(
+  'the Price grid rows matching have {string} in column {string}',
+  async ({ windows }, selector: string, header: string, table: DataTable) => {
+    const match = rowMatch(table);
+    const found = await (await price(windows)).elementsInCell(match, header, selector);
+    await expect(
+      found.first(),
+      `"${selector}" in column "${header}" of the Price grid rows matching ${describe(match)}`,
+    ).toBeVisible();
   },
 );
 
