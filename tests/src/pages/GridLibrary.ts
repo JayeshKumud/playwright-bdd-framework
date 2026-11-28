@@ -12,6 +12,19 @@ export const ELEMENT_TYPES = ['checkbox', 'radio', 'button', 'link', 'input', 'd
 export type RowMatch = Record<string, string>;
 
 /**
+ * The element a grid is in, for windows whose grids no column tells apart (they show the same columns): the element
+ * around the grid (a panel, a tab, a div with an id) or the grid element itself. `name` is how messages call it,
+ * usually its locator name: `{ container: this.el.get('bookingsGrid'), name: 'bookingsGrid' }`.
+ */
+export interface GridContainer {
+  container: Locator;
+  name: string;
+}
+
+/** How a grid is picked: a column only it has, or the element it is in; undefined = the window's only grid. */
+export type GridPick = string | GridContainer | undefined;
+
+/**
  * A data grid, with the same functions for every page (the same as agentic-qa-java's GridLibrary). Columns are
  * named by their header text, so tests never deal with column ids. Rows are found by a {@link RowMatch}, and every
  * function returns all the rows that show all its values:
@@ -26,8 +39,9 @@ export type RowMatch = Record<string, string>;
  *   await grid.cellIn(rows, 'Price');                                   // the Price cell of rows you have
  *   await grid.columnValues('Name');                                    // all names shown
  *
- * A cell shows its text, or, if it holds a text input, textarea or dropdown, that field's value (a dropdown: its
- * selected option's text); checkboxes, radios and hidden inputs are left out. Values are compared by
+ * A cell shows its text as shown on screen (innerText: hidden text such as AG Grid's accessibility labels left out),
+ * or, if it holds a text input, textarea or dropdown, that field's value (a dropdown: its selected option's text);
+ * checkboxes, radios and hidden inputs are left out. Values are compared by
  * {@link sameValue}: whitespace collapsed and trimmed, and numbers by value, so "70" matches "70.00".
  *
  * A lookup by value looks once and points at the cells or rows it found there (by row-index, or by position in a
@@ -40,30 +54,54 @@ export type RowMatch = Record<string, string>;
  *
  * Every lookup searches inside one grid (its `root` in the locator file), never the whole page, so a page with two
  * grids cannot mix their rows (both have a row-index 0). `price.grid()` is the window's only grid, or the one
- * picked for the window with {@link useGrid} (the step "I use the grid with column ..."); `price.grid('Booking')`
- * is the grid with a Booking column. The same as agentic-qa-java (docs/multiple-grids.md there).
+ * picked for the window with {@link useGrid} or {@link useGridIn} (the steps "I use the grid with column ..." and
+ * "I use the grid in ..."); `price.grid('Booking')` is the grid with a Booking column, `price.gridIn('bookingsGrid')`
+ * the grid in that element of locators/price.json. The same as agentic-qa-java (docs/multiple-grids.md).
  */
 export class GridLibrary {
   private readonly el: PageElements;
   private readonly columnKeys = new Map<string, string>();
   /** The grid this library works on: every lookup is inside it. */
   private readonly gridRoot: Locator;
+  /** 'the grid', 'the grid with the column "Booking"' or 'the grid in "bookingsGrid"', for messages. */
+  private readonly label: string;
+  /** What {@link waitUntilLoaded} says when the pick finds several grids. */
+  private readonly severalGrids: (grids: number) => string;
 
   /**
    * @param page     the window the grid is in
    * @param locators the grid's locator file, AG Grid by default
-   * @param column   the header text of a column only this grid has, for windows with several grids; by default
-   *                 the column picked for the window with {@link useGrid}, else none (the window's only grid)
+   * @param pick     for windows with several grids: the header text of a column only this grid has, or the element
+   *                 it is in ({@link GridContainer}); by default the grid picked for the window with
+   *                 {@link useGrid} / {@link useGridIn}, else none (the window's only grid)
    */
   constructor(
-    private readonly page: Page,
+    page: Page,
     private readonly locators: LocatorFile = agGridLocators,
-    private readonly column: string | undefined = chosenGridColumn(page),
+    pick: GridPick = chosenGrid(page),
   ) {
     this.el = new PageElements(page, locators, 'grid locator file');
     const all = this.el.get('root');
-    this.gridRoot =
-      column === undefined ? all : all.filter({ has: this.el.get('headerCell', { HEADER: column }) });
+    if (pick === undefined) {
+      this.gridRoot = all;
+      this.label = 'the grid';
+      this.severalGrids = (grids) =>
+        `${grids} grids on ${page.url()}: pick one by a column only it has, with the step ` +
+        `'I use the grid with column "Booking"' or price.grid('Booking'), or by its container, with the step ` +
+        `'I use the grid in "bookingsGrid"' or price.gridIn('bookingsGrid')`;
+    } else if (typeof pick === 'string') {
+      this.gridRoot = all.filter({ has: this.el.get('headerCell', { HEADER: pick }) });
+      this.label = `the grid with the column "${pick}"`;
+      this.severalGrids = (grids) =>
+        `${grids} grids have a "${pick}" column on ${page.url()}: pick the grid by a column only it has, or by its ` +
+        `container, with 'I use the grid in "bookingsGrid"' or price.gridIn('bookingsGrid')`;
+    } else {
+      // the grid inside the container, or the container itself when its locator is the grid element
+      this.gridRoot = pick.container.locator(this.el.selector('root')).or(pick.container.and(all));
+      this.label = `the grid in "${pick.name}"`;
+      this.severalGrids = (grids) =>
+        `${grids} grids in "${pick.name}" on ${page.url()}: make its locator match the element around one grid only`;
+    }
   }
 
   /**
@@ -88,14 +126,7 @@ export class GridLibrary {
   async waitUntilLoaded(): Promise<this> {
     await expect(this.gridRoot.first(), `${this.name()} is shown`).toBeVisible();
     const grids = await this.gridRoot.count();
-    if (grids > 1) {
-      throw new Error(
-        this.column === undefined
-          ? `${grids} grids on ${this.page.url()}: pick one by a column only it has, with the step ` +
-              `'I use the grid with column "Booking"' or price.grid('Booking')`
-          : `${grids} grids have a "${this.column}" column on ${this.page.url()}: pick the grid by a column only it has`,
-      );
-    }
+    if (grids > 1) throw new Error(this.severalGrids(grids));
     await expect(this.inGrid('header'), `the header of ${this.name()} is shown`).toBeVisible();
     if (this.locators.loadingOverlay) {
       await expect(this.inGrid('loadingOverlay'), `${this.name()} has finished loading`).toBeHidden();
@@ -107,9 +138,9 @@ export class GridLibrary {
     return this;
   }
 
-  /** "the grid", or 'the grid with the column "Booking"', for messages. */
+  /** 'the grid', 'the grid with the column "Booking"' or 'the grid in "bookingsGrid"', for messages. */
   private name(): string {
-    return this.column === undefined ? 'the grid' : `the grid with the column "${this.column}"`;
+    return this.label;
   }
 
   /** An element of the locator file, searched inside this grid. */
@@ -274,27 +305,59 @@ export class GridLibrary {
   }
 }
 
+/** A grid picked for a window: a column, or a container kept as its selector (a Locator is rebuilt from it). */
+type GridChoice = { column: string } | { containerSelector: string; name: string };
+
 /**
- * Per window: the column that picks its grid, for windows with several grids. A WeakMap keyed by the window, so a
- * choice ends with the window (each scenario has its own windows) and parallel workers never share one.
+ * Per window: how its grid is picked, for windows with several grids. A WeakMap keyed by the window, so a choice
+ * ends with the window (each scenario has its own windows) and parallel workers never share one.
  */
-const gridColumns = new WeakMap<Page, string>();
+const gridChoices = new WeakMap<Page, GridChoice>();
 
 /**
  * Makes every GridLibrary created for this window (so `price.grid()` and the grid steps) the grid with this column,
- * the step "I use the grid with column ...". The choice belongs to the window; other windows keep theirs.
+ * the step "I use the grid with column ...". The choice belongs to the window; other windows keep theirs. It
+ * replaces a container picked with {@link useGridIn}.
  *
  * @param window the window
- * @param column the header text of a column only that grid has; undefined = the window's only grid again
+ * @param column the header text of a column only that grid has; undefined = the window's only grid again (clears a
+ *               container too)
  */
 export function useGrid(window: Page, column: string | undefined): void {
-  if (column === undefined) gridColumns.delete(window);
-  else gridColumns.set(window, column);
+  if (column === undefined) gridChoices.delete(window);
+  else gridChoices.set(window, { column });
 }
 
-/** The column picked for a window with {@link useGrid}, or undefined for its only grid. */
+/**
+ * Makes every GridLibrary created for this window the grid in an element, the step "I use the grid in ...", for
+ * windows whose grids no column tells apart. It replaces a column picked with {@link useGrid}.
+ *
+ * @param window            the window
+ * @param name              the container's locator name, for messages, for example "bookingsGrid"
+ * @param containerSelector the container's selector, from the page's locator file
+ */
+export function useGridIn(window: Page, name: string, containerSelector: string): void {
+  gridChoices.set(window, { containerSelector, name });
+}
+
+/** The column picked for a window with {@link useGrid}, or undefined (its only grid, or a container was picked). */
 export function chosenGridColumn(window: Page): string | undefined {
-  return gridColumns.get(window);
+  const choice = gridChoices.get(window);
+  return choice && 'column' in choice ? choice.column : undefined;
+}
+
+/** The container name picked for a window with {@link useGridIn}, or undefined. */
+export function chosenGridContainer(window: Page): string | undefined {
+  const choice = gridChoices.get(window);
+  return choice && 'name' in choice ? choice.name : undefined;
+}
+
+/** How the grid of a window is picked: the column or container chosen for it, or undefined for its only grid. */
+export function chosenGrid(window: Page): GridPick {
+  const choice = gridChoices.get(window);
+  if (choice === undefined) return undefined;
+  if ('column' in choice) return choice.column;
+  return { container: window.locator(choice.containerSelector), name: choice.name };
 }
 
 /** `"Name" is "COE" and "Role" is "Admin"`, for messages. */
@@ -334,7 +397,8 @@ interface ScannedCell {
 /**
  * Runs in the browser, over a grid's cells: what each one shows and whether it shows `want`, compared as
  * {@link sameValue} does. A cell shows the values of the text inputs, textareas and dropdowns it holds (a dropdown:
- * its selected option's text; checkboxes, radios and hidden inputs are left out), or its text if it holds none, and
+ * its selected option's text; checkboxes, radios and hidden inputs are left out), or its text if it holds none: the
+ * text as shown, as Playwright's innerText() gives it (hidden elements left out, CSS text-transform applied), and
  * matches when its text or one of its fields is `want`. It must not use anything outside itself: Playwright sends
  * its source to the page.
  */
@@ -366,9 +430,11 @@ function scanCells(
     // positions count within the cell's own grid, as GridLibrary's row lookups do (rows of the grid's root)
     const rowsOf = (c: Element) =>
       Array.from((c.closest(rootSelector) ?? document).querySelectorAll(rowSelector));
+    // the text as shown (innerText): textContent also has hidden text, such as AG Grid's accessibility labels
+    const text = (cell as HTMLElement).innerText ?? cell.textContent ?? '';
     return {
-      value: fields.length ? fields.map(shown).join(' ') : (cell.textContent ?? ''),
-      matches: want !== null && (same(cell.textContent) || fields.some((f) => same(shown(f)))),
+      value: fields.length ? fields.map(shown).join(' ') : text,
+      matches: want !== null && (same(text) || fields.some((f) => same(shown(f)))),
       rowKey: rowIndex != null ? `index:${rowIndex}` : `position:${row ? rowsOf(cell).indexOf(row) : -1}`,
     };
   });

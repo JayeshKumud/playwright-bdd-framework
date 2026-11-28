@@ -1,6 +1,9 @@
 import { Page } from '@playwright/test';
+import { LocatorFile } from './PageElements';
 import { PricePage } from './PricePage';
 import { UniquePage } from './UniquePage';
+import priceLocators from './locators/price.json';
+import uniqueLocators from './locators/unique.json';
 
 /**
  * One of the app's windows. Every window except HOME is opened by the dropdown option with its `text`, and that
@@ -11,6 +14,10 @@ export interface AppWindow {
   readonly text: string;
   /** Checks the window is shown and ready (its page object's verifyDisplayed); none = nothing to check. */
   readonly verify?: (page: Page) => Promise<unknown>;
+  /** Its page object's locator file, for steps that name an element of the window ("I use the grid in ..."). */
+  readonly locators?: LocatorFile;
+  /** The locator file's path, for messages. */
+  readonly locatorsFile?: string;
 }
 
 /**
@@ -21,20 +28,31 @@ export interface AppWindow {
  *   await windows.switchToWindow(Window.UNIQUE_WINDOW);     // from Price Booking; replaces it in the same window
  *   await windows.switchToWindow(Window.HOME);              // the scenario's first window
  *
- * Adding a window: add an entry with its exact option text and, if it has one, its page object's check.
+ * Adding a window: add an entry with its exact option text and, if it has one, its page object's check and locator
+ * file.
  */
 export const Window = {
   /** The scenario's first window. Not a dropdown option; it is never opened, only switched to. */
   HOME: { text: 'Home' },
   /** The Price Booking window: option "Price Booking" of the home page's dropdown. */
-  PRICE_BOOKING: { text: PricePage.TITLE, verify: (page: Page) => new PricePage(page).verifyDisplayed() },
+  PRICE_BOOKING: {
+    text: PricePage.TITLE,
+    verify: (page: Page) => new PricePage(page).verifyDisplayed(),
+    locators: priceLocators,
+    locatorsFile: 'locators/price.json',
+  },
   /** The Customer window: option "Customer Window" of the Price Booking window's dropdown. */
   CUSTOMER_WINDOW: { text: 'Customer Window' },
   /**
    * The Unique window: option "Unique Window" of the Price Booking window's dropdown. The app loads it into the
    * Price Booking window itself, so that window shows Unique afterwards.
    */
-  UNIQUE_WINDOW: { text: UniquePage.TITLE, verify: (page: Page) => new UniquePage(page).verifyDisplayed() },
+  UNIQUE_WINDOW: {
+    text: UniquePage.TITLE,
+    verify: (page: Page) => new UniquePage(page).verifyDisplayed(),
+    locators: uniqueLocators,
+    locatorsFile: 'locators/unique.json',
+  },
 } as const satisfies Record<string, AppWindow>;
 
 /** All windows, in the order above. */

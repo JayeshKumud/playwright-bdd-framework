@@ -1,7 +1,9 @@
 import { DataTable } from 'playwright-bdd';
 import { scenarioName } from '../../core/keys';
 import { ScenarioData } from '../../core/ScenarioData';
-import { GridLibrary, RowMatch, sameValue, useGrid } from '../../pages/GridLibrary';
+import { GridLibrary, RowMatch, sameValue, useGrid, useGridIn } from '../../pages/GridLibrary';
+import { PageElements } from '../../pages/PageElements';
+import { allWindows } from '../../pages/Window';
 import { expect, Then, When } from '../../fixtures/test';
 
 // Steps for the data grid (GridLibrary), the same as agentic-qa-java's GridSteps. Columns are named by their header
@@ -39,6 +41,11 @@ import { expect, Then, When } from '../../fixtures/test';
 //
 //   When I use the grid with column "Booking"
 //   When I use the only grid
+//
+// Grids that show the same columns are picked by the element they are in, a locator of the current window's locator
+// file (locators/price.json for the Price window, the `locators` of its entry in Window.ts):
+//
+//   When I use the grid in "bookingsGrid"
 
 const CHECKBOX = 'checkbox';
 
@@ -47,6 +54,24 @@ const CHECKBOX = 'checkbox';
 When('I use the grid with column {string}', async ({ windows }, column: string) => {
   useGrid(windows.current, column);
   await new GridLibrary(windows.current).waitUntilLoaded();
+});
+
+// Picks the current window's grid that is in an element of its page (a locator of the window's locator file), for
+// grids no column tells apart, and waits until it has loaded: an unknown name, an empty container or one with
+// several grids fails here, before the choice is kept.
+When('I use the grid in {string}', async ({ windows }, containerName: string) => {
+  const window = windows.current;
+  const title = await window.title();
+  const appWindow = allWindows.find((w) => w.text === title && w.locators);
+  if (!appWindow?.locators) {
+    throw new Error(
+      `No locator file is known for the window "${title}": add \`locators\` to its entry in src/pages/Window.ts ` +
+        `(windows with one: ${JSON.stringify(allWindows.filter((w) => w.locators).map((w) => w.text))})`,
+    );
+  }
+  const selector = new PageElements(window, appWindow.locators, appWindow.locatorsFile).selector(containerName);
+  await new GridLibrary(window, undefined, { container: window.locator(selector), name: containerName }).waitUntilLoaded();
+  useGridIn(window, containerName, selector);
 });
 
 When('I use the only grid', async ({ windows }) => {

@@ -279,6 +279,7 @@ When I use the only grid
 | Step | Does |
 |---|---|
 | `When I use the grid with column "Booking"` | picks the current window's grid that has that column (AG Grid) and waits until it has loaded |
+| `When I use the grid in "bookingsGrid"` | picks the grid in an element of the window, a locator of its locator file: for grids that show the same columns (`price.gridIn('bookingsGrid')` in code) |
 | `When I use the only grid` | goes back to the window's single grid |
 
 After the step, every grid on that window is the picked one: `price.grid()`, the Price grid steps and the

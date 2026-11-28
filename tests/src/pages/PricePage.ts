@@ -51,11 +51,23 @@ export class PricePage {
   }
 
   /**
-   * The Price window's data grid (AG Grid): its only grid, or the one picked for the window (the step "I use the
-   * grid with column ..."); with a column, the grid that has that column: `price.grid('Booking')`.
+   * The Price window's data grid (AG Grid): its only grid, or the one picked for the window (the steps "I use the
+   * grid with column ..." and "I use the grid in ..."); with a column, the grid that has that column:
+   * `price.grid('Booking')`.
    */
   grid(column?: string): GridLibrary {
     return column === undefined ? new GridLibrary(this.page) : new GridLibrary(this.page, undefined, column);
+  }
+
+  /**
+   * The grid in an element of the Price window, for grids that show the same columns (no column tells them apart):
+   * `price.gridIn('bookingsGrid')`. The element is a locator of locators/price.json: the element around the grid
+   * (`"#bookings"`) or the grid element itself (`"#bookings .ag-root-wrapper"`).
+   *
+   * @throws Error if locators/price.json has no locator with that name
+   */
+  gridIn(containerName: string): GridLibrary {
+    return new GridLibrary(this.page, undefined, { container: this.el.get(containerName), name: containerName });
   }
 
   /** Clicks the filter button. */
@@ -264,28 +276,10 @@ export class PricePage {
   }
 
   /**
-   * The Price grid rows matching `match` whose Price cell holds a div whose class contains `classPart`
-   * (case-sensitive): `await (await price.rowsWithPriceDiv({ Booking: 'Booking A' }, 'TEST1')).all()`. Fails if
-   * there are none.
-   *
-   * The Locator keeps, of each row, the part that holds the Price cell: on an AG Grid with a pinned column, a cell
-   * of a column in the other part is not inside it. It is searched again on every use.
-   */
-  async rowsWithPriceDiv(match: RowMatch, classPart: string): Promise<Locator> {
-    const rows = await this.priceDivRows(await this.grid().waitUntilLoaded(), match, classPart);
-    expect(
-      (await rows.all()).length,
-      `a Price grid row matching ${JSON.stringify(match)} with a "${classPart}" div in its Price cell`,
-    ).toBeGreaterThan(0);
-    return rows;
-  }
-
-  /**
    * The checkboxes in column `checkboxHeader` of the Price grid rows of the given units whose Price cell holds a
    * div whose class contains `classPart`: `await price.checkboxesWithPriceDiv(['TEST1', 'TEST2'], 'PRICE1',
-   * 'Unique')`. For each unit it filters the rows whose Unit is that unit to those whose Price cell has the div (as
-   * {@link rowsWithPriceDiv}), then takes the checkbox in their `checkboxHeader` cell. A unit without such a row is
-   * skipped; it fails if no checkbox is found at all.
+   * 'Unique')`. For each unit it filters the rows whose Unit is that unit to those whose Price cell has the div,
+   * then takes the checkbox in their `checkboxHeader` cell. A unit without such a row is skipped; it fails if no checkbox is found at all.
    *
    * The checkbox column must be in the same part of the row as the Price column: on an AG Grid where one of them is
    * pinned and the other is not, the filtered rows do not contain the checkbox and none is found.
@@ -307,10 +301,6 @@ export class PricePage {
     return checkboxes;
   }
 
-  /**
-   * The rows matching `match` whose Price cell holds a div whose class contains `classPart`, without failing when
-   * there are none (see {@link rowsWithPriceDiv}).
-   */
   private async priceDivRows(grid: GridLibrary, match: RowMatch, classPart: string): Promise<Locator> {
     const priceCell = await grid.cellIn(this.page.locator(':scope'), PricePage.MARKER_HEADER); // searched in each row
     return (await grid.rows(match)).filter({ has: priceCell.locator(`div[class*='${classPart}']`) });

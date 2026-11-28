@@ -2,8 +2,8 @@
 
 Some windows of the real application show two AG Grids at once, both visible and side by side or one above the
 other. The grid steps and [`GridLibrary`](../src/pages/GridLibrary.ts) work on **one grid at a time**, and on such
-a window you say which one: by a column that only that grid has. The same as agentic-qa-java (its
-`docs/multiple-grids.md`).
+a window you say which one: by a column that only that grid has, or, when the grids show the same columns, by the
+element the grid is in. The same as agentic-qa-java (its `docs/multiple-grids.md`).
 
 ```gherkin
 When I open the Price Booking window
@@ -38,9 +38,10 @@ picked grid.
 | Step | Does |
 |---|---|
 | `When I use the grid with column "Booking"` | picks the current window's AG Grid that has a column with that header, and waits until it has loaded |
-| `When I use the only grid` | goes back to the window's single grid |
+| `When I use the grid in "bookingsGrid"` | picks the grid in an element of the window: `bookingsGrid` is a locator in the current window's locator file ([below](#grids-with-the-same-columns-pick-by-container)); waits until it has loaded |
+| `When I use the only grid` | goes back to the window's single grid (clears a column or a container choice) |
 
-Both are in [`grid.steps.ts`](../src/steps/ui/grid.steps.ts). After `I use the grid with column`, every
+All are in [`grid.steps.ts`](../src/steps/ui/grid.steps.ts). After `I use the grid with column` or `I use the grid in`, every
 `GridLibrary` created for **that window** is the picked grid:
 
 - the Price grid steps ([`price.steps.ts`](../src/steps/ui/price.steps.ts)): `the Price grid is loaded`, `I check
@@ -59,7 +60,8 @@ Grid locator file, so use it on AG Grid windows such as Price Booking.
 
 The choice belongs to **the window** (the Playwright `Page`) it was made on:
 
-- It stays until you pick another grid, or `I use the only grid`, on that window.
+- It stays until you pick another grid (by column or by container: the newer choice replaces the other), or
+  `I use the only grid`, on that window.
 - Other windows keep their own choice, so after `I go back to the "Price Booking" window` the Price window's grid
   is the one picked there earlier.
 - When a window's page is replaced in place (opening Unique Window from Price Booking loads it into the same
@@ -79,9 +81,9 @@ Pick a column that **only that grid** has, and write its header exactly as shown
 
 | Message | Means | Fix |
 |---|---|---|
-| `2 grids have a "Status" column on <url>: pick the grid by a column only it has` | both grids have that column | pick a column only one of them has |
+| `2 grids have a "Status" column on <url>: pick the grid by a column only it has, or by its container ...` | both grids have that column | pick a column only one of them has, or [pick by container](#grids-with-the-same-columns-pick-by-container) |
 | `the grid with the column "Bookings" is shown` (expect timeout) | no grid has that column (yet) | check the header text; open the tab or panel that shows the grid first |
-| `2 grids on <url>: pick one by a column only it has, with the step 'I use the grid with column "Booking"' or price.grid('Booking')` | a grid step ran on a window with two grids, and none was picked | add `I use the grid with column "..."` before it |
+| `2 grids on <url>: pick one by a column only it has, with the step 'I use the grid with column "Booking"' or price.grid('Booking')` | a grid step ran on a window with two grids, and none was picked | add `I use the grid with column "..."` or `I use the grid in "..."` before it |
 
 ## In code
 
@@ -89,7 +91,9 @@ Pick a column that **only that grid** has, and write its header exactly as shown
 const price = new PricePage(await windows.window(PricePage.TITLE));
 const grid = price.grid();                                // the only grid, or the one picked for the window
 const bookings = price.grid('Booking');                   // the grid with a Booking column, whatever was picked
+const inPanel = price.gridIn('bookingsGrid');             // the grid in the bookingsGrid element of price.json
 new GridLibrary(page, undefined, 'Booking');              // the same, without a page object (AG Grid locators)
+new GridLibrary(page, undefined, { container: page.locator('#bookings'), name: '#bookings' }); // a container
 new GridLibrary(page, tableLocators, 'Name');             // another locator file, picked by a column
 ```
 
@@ -104,7 +108,8 @@ for (const box of await (await bookings.elements({ Booking: 'Booking A' }, 'chec
 await (await bookings.cellIn(rows, 'Price')).locator('span.something').count();
 ```
 
-`grid('Booking')` always gives the grid with that column; `grid()` follows the choice of the window. A step of
+`grid('Booking')` always gives the grid with that column, `gridIn('bookingsGrid')` the grid in that element;
+`grid()` follows the choice of the window. A step of
 your own that uses `price.grid()` therefore follows `I use the grid with column` without any extra code:
 
 ```ts
@@ -133,14 +138,56 @@ grids and nothing picked, `price.grid().root()` finds both, so pick one first.
 The step stores the choice for the window; code can do the same:
 
 ```ts
-import { chosenGridColumn, useGrid } from '../../pages/GridLibrary';
+import { chosenGridColumn, chosenGridContainer, useGrid, useGridIn } from '../../pages/GridLibrary';
 
 useGrid(windows.current, 'Booking');      // like I use the grid with column "Booking"
-useGrid(windows.current, undefined);      // like I use the only grid
+useGridIn(windows.current, 'bookingsGrid', '#bookings'); // like I use the grid in "bookingsGrid" (name, selector)
+useGrid(windows.current, undefined);      // like I use the only grid (clears both kinds)
 chosenGridColumn(windows.current);        // the column picked for a window, or undefined
+chosenGridContainer(windows.current);     // the container name picked for a window, or undefined
 ```
 
-Prefer `price.grid('Booking')` in code: it says which grid it uses where it is used.
+Prefer `price.grid('Booking')` or `price.gridIn('bookingsGrid')` in code: it says which grid it uses where it is
+used.
+
+## Grids with the same columns: pick by container
+
+When both grids show exactly the same columns, no column tells them apart. Pick the grid by the element it is in
+instead. Add that element to the window's locator file (for the Price window,
+[`locators/price.json`](../src/pages/locators/price.json)):
+
+```json
+"bookingsGrid": { "selector": "#bookings", "description": "the panel around the Bookings grid" }
+```
+
+Then pick it:
+
+```gherkin
+When I use the grid in "bookingsGrid"
+Then the Price grid is loaded
+```
+
+```ts
+const bookings = await price.gridIn('bookingsGrid').waitUntilLoaded();
+```
+
+The locator can point at the element **around** the grid (a panel, a tab, a `div` with an id: `#bookings`) or at
+the **grid element itself** (`#bookings .ag-root-wrapper`); either way the grid is the one in it.
+
+The step finds the locator file by the current window's title: the `locators` of its entry in
+[`Window.ts`](../src/pages/Window.ts) (Price Booking: `price.json`, Unique Window: `unique.json`). For another
+window, add `locators` and `locatorsFile` to its entry. Unlike agentic-qa-java, where every page object has its
+locator file, the TS steps work on windows (Playwright `Page`s), so this mapping is needed.
+
+| Message | Means | Fix |
+|---|---|---|
+| `"bookingGrid" is not in the locators/price.json; add it there` | the name is not in the window's locator file | check the spelling, or add the locator |
+| `No locator file is known for the window "<title>": add \`locators\` to its entry in src/pages/Window.ts ...` | the current window has no locator file in `Window.ts` | add it, or switch to the right window first |
+| `the grid in "bookingsGrid" is shown` (expect timeout) | the element has no grid in it (yet), or the locator finds nothing | check the selector; open the tab or panel that shows the grid first |
+| `2 grids in "bookingsGrid" on <url>: make its locator match the element around one grid only` | the element holds both grids, or the locator finds several elements | make the selector narrower |
+
+`I use the grid in` checks the grid before keeping the choice, so a wrong name or container fails at that step and
+leaves the earlier choice as it was.
 
 ## Locator files: selectors relative to the root
 
@@ -159,9 +206,9 @@ finds nothing:
 
 ## Limits
 
-- **Grids with the same columns.** A grid is picked by a column only it has. If both grids show exactly the same
-  columns, no column tells them apart; that needs picking by a container from the page's locator file (for example
-  `"bookingsGrid": "#bookings .ag-root-wrapper"`), which is not built yet.
+- **Grids with the same columns and no element of their own.** Picking by container needs an element that holds
+  one grid only. If the app renders both grids in the same parent without ids or classes that tell them apart, a
+  positional selector (`#panel > div:nth-child(2)`) works but breaks when the layout changes.
 - **Nested grids.** AG Grid's master/detail rows put a grid inside a row of another. The outer grid's lookups would
   also find the inner grid's rows. The windows this was built for have side-by-side grids, not nested ones.
 - **Hidden grids.** A grid in a closed tab or panel still counts: it has its columns and its root. If one of the
@@ -179,3 +226,15 @@ no application needed), the same cases as agentic-qa-java's `GridLibraryTwoGrids
 - a column both grids have fails clearly;
 - a page object's `grid()` follows the grid picked for its window, and "only grid" again fails clearly;
 - the plain customers table still works with its relative selectors.
+
+Picking by container and matching by shown text were checked the same way (6 passed, spec removed), the same cases
+as agentic-qa-java's `GridLibraryContainerTest` and `GridLibraryShownTextTest`:
+
+- two grids with the **same** columns, each found by its container, whether the locator is the element around it
+  or the grid element itself;
+- a column cannot pick them, and the message points to picking by container;
+- a container with both grids and a container without a grid fail clearly;
+- a container picked for the window is what `new GridLibrary(page)` uses; a column choice replaces it and the other
+  way round; "only grid" clears it;
+- cells match by the text they show (`innerText`: a hidden span is left out, `text-transform` applied), and inputs,
+  textareas and dropdowns by their value; a checkbox next to a label is ignored.
